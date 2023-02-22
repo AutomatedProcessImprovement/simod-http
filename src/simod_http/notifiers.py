@@ -3,7 +3,6 @@ import smtplib
 from typing import Union
 
 import requests
-
 from simod_http.app import Error, RequestStatus
 
 

@@ -9,8 +9,8 @@ from fastapi.responses import JSONResponse
 from fastapi_utils.tasks import repeat_every
 from uvicorn.config import LOGGING_CONFIG
 
-from .app import RequestStatus, BaseRequestException, NotFound, app, Request
-from .router import router
+from simod_http.app import RequestStatus, BaseRequestException, NotFound, app, Request
+from simod_http.router import router
 
 api = FastAPI()
 api.include_router(router)
