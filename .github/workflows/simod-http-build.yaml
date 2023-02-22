@@ -34,7 +34,9 @@ jobs:
 
       - name: Get the version
         id: versioning
-        run: poetry version --short >> "$GITHUB_OUTPUT"
+        run: |
+          pip install poetry
+          poetry version --short >> "$GITHUB_OUTPUT"
 
       - name: Install
         run: poetry install
