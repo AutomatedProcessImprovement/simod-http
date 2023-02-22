@@ -1,5 +1,8 @@
 # Simod HTTP
 
+![simod-http](https://github.com/AutomatedProcessImprovement/simod-http/actions/workflows/simod-http-build.yml/badge.svg)
+
+
 Simod HTTP is a web server for Simod. It provides a REST API for Simod and job management. A user submits a request to Simod HTTP by providing a configuration file, an event log, an optionally a BPMN model. Simod HTTP then runs Simod on the provided data and notifies the user when the job is finished because Simod can take a long time to run depending on the size of the event log and the number of optimization trials in the configuration.
 
 Simod HTTP already includes an installed version of Simod in its Docker image. 

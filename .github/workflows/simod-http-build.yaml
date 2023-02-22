@@ -36,7 +36,7 @@ jobs:
         id: versioning
         run: |
           pip install poetry
-          poetry version --short >> "$GITHUB_OUTPUT"
+          echo "version=$(poetry version --short)" >> "$GITHUB_OUTPUT"
 
       - name: Install
         run: poetry install
