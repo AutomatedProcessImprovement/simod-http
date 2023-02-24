@@ -20,6 +20,7 @@ class Error(BaseModel):
 class RequestStatus(str, Enum):
     UNKNOWN = 'unknown'
     ACCEPTED = 'accepted'
+    PENDING = 'pending'
     RUNNING = 'running'
     SUCCESS = 'success'
     FAILURE = 'failure'

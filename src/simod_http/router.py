@@ -5,6 +5,8 @@ from typing import Union, Optional
 
 from fastapi import Response, Form, APIRouter
 from fastapi.responses import JSONResponse
+from starlette.background import BackgroundTasks
+
 from simod_http.app import Response as AppResponse, RequestStatus, NotFound, UnsupportedMediaType, NotSupported, app, \
     Request
 from simod_http.simod_utils import convert_xes_to_csv_if_needed
@@ -55,6 +57,7 @@ async def read_discovery(request_id: str) -> AppResponse:
 
 @router.post("/discoveries")
 async def create_discovery(
+        background_tasks: BackgroundTasks,
         configuration=Form(),
         event_log=Form(),
         callback_url: Optional[str] = None,
@@ -72,38 +75,49 @@ async def create_discovery(
         raise NotSupported(
             request_id=request.id,
             request_status=request.status,
-            message="Email notifications are not supported",
+            message='Email notifications are not supported',
         )
 
-    event_log_path = _save_event_log(event_log, request)
-    event_log_csv_path = convert_xes_to_csv_if_needed(event_log_path)
-
-    configuration_path = _update_config_and_save(
-        configuration, event_log_csv_path, request
-    )
-
-    request.configuration_path = configuration_path.absolute()
     request.status = RequestStatus.ACCEPTED
+    request.save()
 
-    try:
-        app.publish_request(request)
-    except Exception as e:
-        request.status = RequestStatus.FAILURE
-        logging.error(e)
-    finally:
-        request.save()
+    logging.info(f'New request: {request.id}, {request.status}')
+
+    background_tasks.add_task(process_post_request, configuration, event_log, request)
 
     response = AppResponse(request_id=request.id, request_status=request.status)
     return response.json_response(status_code=202)
 
 
-def _update_config_and_save(configuration: UploadFile, event_log_csv_path: Path, request: Request):
+def process_post_request(configuration: UploadFile, event_log: UploadFile, request: Request):
+    logging.info(f'Processing request: {request.id}, {request.status}')
+
+    event_log_path = _save_event_log(event_log, request)
+    logging.info(f'Processing request: {request.id}, {request.status}, event_log_path: {event_log_path}')
+
+    configuration_path = _update_config_and_save(configuration, event_log_path, request)
+    logging.info(f'Processing request: {request.id}, {request.status}, configuration_path: {configuration_path}')
+
+    request.configuration_path = configuration_path.absolute()
+
+    try:
+        app.publish_request(request)
+        request.status = RequestStatus.PENDING
+    except Exception as e:
+        request.status = RequestStatus.FAILURE
+        logging.error(e)
+    finally:
+        request.save()
+        logging.info(f'Processing request: {request.id}, {request.status}')
+
+
+def _update_config_and_save(configuration: UploadFile, event_log_path: Path, request: Request):
     data = configuration.file.read()
     configuration.file.close()
 
     # regexp to replace "log_path: .*" with "log_path: <path>"
     regexp = r'log_path: .*\n'
-    replacement = f'log_path: {event_log_csv_path.absolute()}\n'
+    replacement = f'log_path: {event_log_path.absolute()}\n'
     data = re.sub(regexp, replacement, data.decode('utf-8'))
 
     # test log is not supported in request params
