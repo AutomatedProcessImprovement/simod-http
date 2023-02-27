@@ -22,8 +22,8 @@ class RequestStatus(str, Enum):
     ACCEPTED = 'accepted'
     PENDING = 'pending'
     RUNNING = 'running'
-    SUCCESS = 'success'
-    FAILURE = 'failure'
+    SUCCESS = 'succeeded'
+    FAILURE = 'failed'
 
 
 class NotificationMethod(str, Enum):
@@ -123,7 +123,7 @@ class Application(BaseSettings):
     # Queue settings
     simod_http_requests_queue_name: str = 'requests'
     simod_http_results_queue_name: str = 'results'
-    rabbitmq_url: str = 'amqp://guest:guest@localhost:5672/'
+    broker_url: str = 'amqp://guest:guest@localhost:5672/'
 
     class Config:
         env_file = ".env"
@@ -194,7 +194,7 @@ class Application(BaseSettings):
         return None
 
     def publish_request(self, request: Request):
-        parameters = pika.URLParameters(self.rabbitmq_url)
+        parameters = pika.URLParameters(self.broker_url)
         connection = pika.BlockingConnection(parameters)
         channel = connection.channel()
         channel.queue_declare(queue=self.simod_http_requests_queue_name, durable=True)
