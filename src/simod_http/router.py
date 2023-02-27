@@ -6,11 +6,10 @@ from typing import Union, Optional
 from fastapi import Response, Form, APIRouter
 from fastapi.responses import JSONResponse
 from starlette.background import BackgroundTasks
+from starlette.datastructures import UploadFile
 
 from simod_http.app import Response as AppResponse, RequestStatus, NotFound, UnsupportedMediaType, NotSupported, app, \
     Request
-from simod_http.simod_utils import convert_xes_to_csv_if_needed
-from starlette.datastructures import UploadFile
 
 router = APIRouter()
 

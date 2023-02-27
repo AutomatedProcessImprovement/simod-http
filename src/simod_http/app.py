@@ -121,9 +121,12 @@ class Application(BaseSettings):
     simod_http_smtp_port: int = 25
 
     # Queue settings
-    simod_http_requests_queue_name: str = 'requests'
-    simod_http_results_queue_name: str = 'results'
     broker_url: str = 'amqp://guest:guest@localhost:5672/'
+    simod_exchange_name: str = 'simod'
+    simod_pending_routing_key: str = 'requests.pending'
+    simod_running_routing_key: str = 'requests.running'
+    simod_failed_routing_key: str = 'requests.failed'
+    simod_succeeded_routing_key: str = 'requests.succeeded'
 
     class Config:
         env_file = ".env"
@@ -197,18 +200,17 @@ class Application(BaseSettings):
         parameters = pika.URLParameters(self.broker_url)
         connection = pika.BlockingConnection(parameters)
         channel = connection.channel()
-        channel.queue_declare(queue=self.simod_http_requests_queue_name, durable=True)
+        channel.exchange_declare(exchange=self.simod_exchange_name, exchange_type='topic', durable=True)
         channel.basic_publish(
-            exchange='',
-            routing_key=self.simod_http_requests_queue_name,
+            exchange=self.simod_exchange_name,
+            routing_key=self.simod_pending_routing_key,
             body=request.id.encode(),
             properties=pika.BasicProperties(
                 delivery_mode=PERSISTENT_DELIVERY_MODE,
-                content_type='text/plain',
             ),
         )
         connection.close()
-        logging.info(f'Published request {request.id} to the {self.simod_http_requests_queue_name} queue')
+        logging.info(f'Published request {request.id} to the {self.simod_pending_routing_key} queue')
 
 
 class BaseRequestException(Exception):
