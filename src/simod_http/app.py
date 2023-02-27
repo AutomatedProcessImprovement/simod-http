@@ -116,17 +116,10 @@ class Application(BaseSettings):
     simod_http_logging_format = '%(asctime)s \t %(name)s \t %(levelname)s \t %(message)s'
     simod_http_log_path: Union[str, None] = None
 
-    # SMTP server settings
-    simod_http_smtp_server: str = 'localhost'
-    simod_http_smtp_port: int = 25
-
-    # Queue settings
+    # Broker settings
     broker_url: str = 'amqp://guest:guest@localhost:5672/'
     simod_exchange_name: str = 'simod'
-    simod_pending_routing_key: str = 'requests.pending'
-    simod_running_routing_key: str = 'requests.running'
-    simod_failed_routing_key: str = 'requests.failed'
-    simod_succeeded_routing_key: str = 'requests.succeeded'
+    simod_pending_routing_key: str = 'requests.status.pending'
 
     class Config:
         env_file = ".env"
