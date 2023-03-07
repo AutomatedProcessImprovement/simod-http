@@ -121,7 +121,7 @@ def _update_config_and_save(configuration: UploadFile, event_log_path: Path, req
 
     # test log is not supported in request params
     regexp = r'test_log_path: .*\n'
-    replacement = f'test_log_path: None\n'
+    replacement = 'test_log_path: None\n'
     data = re.sub(regexp, replacement, data)
 
     configuration_path = request.output_dir / 'configuration.yaml'
