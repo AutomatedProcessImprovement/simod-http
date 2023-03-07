@@ -41,6 +41,11 @@ jobs:
       - name: Install
         run: poetry install
 
+      - name: Assign a version tag
+        run: |
+          git tag ${{ steps.versioning.outputs.version }}
+          git push --tags        
+
   docker:
     runs-on: ubuntu-latest
     timeout-minutes: 20
