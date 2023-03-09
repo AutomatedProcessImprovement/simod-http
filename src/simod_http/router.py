@@ -9,7 +9,7 @@ from starlette.background import BackgroundTasks
 from starlette.datastructures import UploadFile
 
 from simod_http.app import Response as AppResponse, RequestStatus, NotFound, UnsupportedMediaType, NotSupported, app, \
-    JobRequest
+    JobRequest, PatchJobRequest
 
 router = APIRouter()
 
@@ -46,6 +46,23 @@ async def read_discovery(request_id: str) -> AppResponse:
     Get the status of the request.
     """
     request = app.load_request(request_id)
+
+    return AppResponse(
+        request_id=request_id,
+        request_status=request.status,
+        archive_url=app.make_results_url_for(request),
+    )
+
+
+@router.patch("/discoveries/{request_id}")
+async def update_discovery(request_id: str, patch_request: PatchJobRequest) -> AppResponse:
+    """
+    Update the status of the request.
+    """
+    request = app.load_request(request_id)
+
+    request.status = patch_request.status
+    request.save()
 
     return AppResponse(
         request_id=request_id,

@@ -96,6 +96,10 @@ class JobRequest(BaseModel):
         )
 
 
+class PatchJobRequest(BaseModel):
+    status: RequestStatus
+
+
 class Application(BaseSettings):
     """
     Simod application that stores main settings and provides access to internal API.
