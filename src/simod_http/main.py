@@ -45,7 +45,7 @@ async def application_shutdown():
         return
 
     for request_dir in requests_dir.iterdir():
-        logging.info(f'Checking request directory before shutting down: {request_dir}')
+        logging.debug(f'Checking request directory before shutting down: {request_dir}')
 
         await _remove_empty_or_orphaned_request_dir(request_dir)
 
@@ -75,7 +75,7 @@ async def clean_up():
 
     for request_dir in requests_dir.iterdir():
         if request_dir.is_dir():
-            logging.info(f'Checking request directory for expired data: {request_dir}')
+            logging.debug(f'Checking request directory for expired data: {request_dir}')
 
             await _remove_empty_or_orphaned_request_dir(request_dir)
 
