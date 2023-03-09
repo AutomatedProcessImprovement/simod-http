@@ -2,7 +2,7 @@ import logging
 import tarfile
 from pathlib import Path
 
-from simod_http.app import Application, Request
+from simod_http.app import Application, JobRequest
 
 
 class Archiver:
@@ -10,7 +10,7 @@ class Archiver:
     Compresses a directory of results.
     """
 
-    def __init__(self, app: Application, request: Request, results_dir: Path):
+    def __init__(self, app: Application, request: JobRequest, results_dir: Path):
         self.app = app
         self.request = request
         self.results_dir = results_dir

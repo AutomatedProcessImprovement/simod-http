@@ -50,7 +50,7 @@ class Response(BaseModel):
         )
 
 
-class Request(BaseModel):
+class JobRequest(BaseModel):
     id: str
     output_dir: Path
     status: Union[RequestStatus, None] = None
@@ -64,7 +64,7 @@ class Request(BaseModel):
         arbitrary_types_allowed = True
 
     def __str__(self):
-        return f'Request(' \
+        return f'JobRequest(' \
                f'id={self.id}, ' \
                f'output_dir={self.output_dir}, ' \
                f'status={self.status}, ' \
@@ -79,13 +79,13 @@ class Request(BaseModel):
         request_info_path.write_text(self.json(exclude={'event_log': True}))
 
     @staticmethod
-    def empty(storage_path: Path) -> 'Request':
+    def empty(storage_path: Path) -> 'JobRequest':
         request_id = str(uuid.uuid4())
 
         output_dir = storage_path / 'requests' / request_id
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        return Request(
+        return JobRequest(
             id=request_id,
             output_dir=output_dir.absolute(),
             status=RequestStatus.UNKNOWN,
@@ -143,7 +143,7 @@ class Application(BaseSettings):
 
         return app
 
-    def load_request(self, request_id: str) -> Request:
+    def load_request(self, request_id: str) -> JobRequest:
         request_dir = Path(self.simod_http_storage_path) / 'requests' / request_id
         if not request_dir.exists():
             raise NotFound(
@@ -154,11 +154,11 @@ class Application(BaseSettings):
             )
 
         request_info_path = request_dir / 'request.json'
-        request = Request.parse_raw(request_info_path.read_text())
+        request = JobRequest.parse_raw(request_info_path.read_text())
         return request
 
-    def new_request_from_params(self, callback_url: Optional[str] = None, email: Optional[str] = None) -> 'Request':
-        request = Request.empty(Path(self.simod_http_storage_path))
+    def new_request_from_params(self, callback_url: Optional[str] = None, email: Optional[str] = None) -> 'JobRequest':
+        request = JobRequest.empty(Path(self.simod_http_storage_path))
 
         if callback_url is not None:
             notification_settings = NotificationSettings(
@@ -177,7 +177,7 @@ class Application(BaseSettings):
 
         return request
 
-    def make_results_url_for(self, request: Request) -> Union[str, None]:
+    def make_results_url_for(self, request: JobRequest) -> Union[str, None]:
         if request.status == RequestStatus.SUCCESS:
             if self.simod_http_port == 80:
                 port = ''
@@ -189,7 +189,7 @@ class Application(BaseSettings):
                    f'/{request.id}.tar.gz'
         return None
 
-    def publish_request(self, request: Request):
+    def publish_request(self, request: JobRequest):
         parameters = pika.URLParameters(self.broker_url)
         connection = pika.BlockingConnection(parameters)
         channel = connection.channel()

@@ -9,7 +9,7 @@ from starlette.background import BackgroundTasks
 from starlette.datastructures import UploadFile
 
 from simod_http.app import Response as AppResponse, RequestStatus, NotFound, UnsupportedMediaType, NotSupported, app, \
-    Request
+    JobRequest
 
 router = APIRouter()
 
@@ -88,7 +88,7 @@ async def create_discovery(
     return response.json_response(status_code=202)
 
 
-def process_post_request(configuration: UploadFile, event_log: UploadFile, request: Request):
+def process_post_request(configuration: UploadFile, event_log: UploadFile, request: JobRequest):
     logging.info(f'Processing request: {request.id}, {request.status}')
 
     event_log_path = _save_event_log(event_log, request)
@@ -110,7 +110,7 @@ def process_post_request(configuration: UploadFile, event_log: UploadFile, reque
         logging.info(f'Processing request: {request.id}, {request.status}')
 
 
-def _update_config_and_save(configuration: UploadFile, event_log_path: Path, request: Request):
+def _update_config_and_save(configuration: UploadFile, event_log_path: Path, request: JobRequest):
     data = configuration.file.read()
     configuration.file.close()
 

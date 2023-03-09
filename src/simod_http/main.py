@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from fastapi_utils.tasks import repeat_every
 from uvicorn.config import LOGGING_CONFIG
 
-from simod_http.app import RequestStatus, BaseRequestException, NotFound, app, Request
+from simod_http.app import RequestStatus, BaseRequestException, NotFound, app, JobRequest
 from simod_http.router import router
 
 api = FastAPI()
@@ -90,7 +90,7 @@ async def clean_up():
             await _remove_not_running_not_timestamped_requests(request, request_dir)
 
 
-async def _remove_not_running_not_timestamped_requests(request: Request, request_dir: Path):
+async def _remove_not_running_not_timestamped_requests(request: JobRequest, request_dir: Path):
     # Removes requests without timestamp that are not running
     if request.timestamp is None and request.status not in [RequestStatus.ACCEPTED, RequestStatus.RUNNING]:
         logging.info(f'Removing request folder for {request_dir.name}, no timestamp and not running')
@@ -100,7 +100,7 @@ async def _remove_not_running_not_timestamped_requests(request: Request, request
 async def _remove_expired_requests(
         current_timestamp: pd.Timestamp,
         expire_after_delta: pd.Timedelta,
-        request: Request,
+        request: JobRequest,
         request_dir: Path,
 ):
     if request.status in [RequestStatus.UNKNOWN, RequestStatus.SUCCESS, RequestStatus.FAILURE]:
