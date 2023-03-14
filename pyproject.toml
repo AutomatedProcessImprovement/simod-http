@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "simod-http"
-version = "0.4.1"
+version = "0.5.0"
 description = "HTTP API for handling Simod job requests"
 authors = ["Ihar Suvorau <ihar.suvorau@gmail.com>"]
 
@@ -22,6 +22,8 @@ python-dotenv = "^0.21.1"
 pika-stubs = "^0.1.3"
 locust = "^2.15.0"
 requests-toolbelt = "^0.10.1"
+pytest = "^7.2.2"
+httpx = "^0.23.3"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

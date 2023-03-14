@@ -5,15 +5,23 @@ from pathlib import Path
 import pandas as pd
 import uvicorn
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi_utils.tasks import repeat_every
+from starlette.exceptions import HTTPException
 from uvicorn.config import LOGGING_CONFIG
 
-from simod_http.app import RequestStatus, BaseRequestException, NotFound, app, JobRequest
+from simod_http.app import RequestStatus, NotFound, app, JobRequest, Response, BadMultipartRequest, \
+    UnsupportedMediaType, InternalServerError, NotSupported
 from simod_http.router import router
 
 api = FastAPI()
 api.include_router(router)
+
+
+@api.get('/{any_str}')
+async def root() -> Response:
+    raise NotFound()
 
 
 @api.on_event('startup')
@@ -56,8 +64,8 @@ async def application_shutdown():
             continue
 
         # At the end, there are only 'failed' or 'succeeded' requests
-        if request.status not in [RequestStatus.SUCCESS, RequestStatus.FAILURE]:
-            request.status = RequestStatus.FAILURE
+        if request.status not in [RequestStatus.SUCCEEDED, RequestStatus.FAILED]:
+            request.status = RequestStatus.FAILED
             request.timestamp = pd.Timestamp.now()
             request.save()
 
@@ -103,7 +111,7 @@ async def _remove_expired_requests(
         request: JobRequest,
         request_dir: Path,
 ):
-    if request.status in [RequestStatus.UNKNOWN, RequestStatus.SUCCESS, RequestStatus.FAILURE]:
+    if request.status in [RequestStatus.UNKNOWN, RequestStatus.SUCCEEDED, RequestStatus.FAILED]:
         expired_at = request.timestamp + expire_after_delta
         if expired_at <= current_timestamp:
             logging.info(f'Removing request folder for {request_dir.name}, expired at {expired_at}')
@@ -125,19 +133,56 @@ async def _remove_empty_or_orphaned_request_dir(request_dir):
         shutil.rmtree(request_dir, ignore_errors=True)
 
 
-@api.exception_handler(BaseRequestException)
-async def request_exception_handler(_, exc: BaseRequestException) -> JSONResponse:
-    logging.error(f'Request exception occurred: {exc}')
+@api.exception_handler(HTTPException)
+async def request_exception_handler(_, exc: HTTPException) -> JSONResponse:
+    logging.exception(f'Request exception occurred: {exc}')
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            'error': {'message': exc.detail},
+        },
+    )
+
+
+@api.exception_handler(RequestValidationError)
+async def validation_exception_handler(_, exc: RequestValidationError) -> JSONResponse:
+    logging.exception(f'Validation exception occurred: {exc}')
+    return JSONResponse(
+        status_code=422,
+        content={
+            'error': {'message': 'Validation error', 'detail': exc.errors()},
+        },
+    )
+
+
+@api.exception_handler(NotFound)
+async def not_found_exception_handler(_, exc: NotFound) -> JSONResponse:
+    logging.exception(f'Not found exception occurred: {exc}')
     return exc.json_response()
 
 
-@api.get('/{any_str}')
-async def root() -> JSONResponse:
-    raise NotFound(
-        request_id='N/A',
-        request_status=RequestStatus.UNKNOWN,
-        message='Not found',
-    )
+@api.exception_handler(BadMultipartRequest)
+async def bad_multipart_exception_handler(_, exc: BadMultipartRequest) -> JSONResponse:
+    logging.exception(f'Bad multipart exception occurred: {exc}')
+    return exc.json_response()
+
+
+@api.exception_handler(UnsupportedMediaType)
+async def bad_multipart_exception_handler(_, exc: UnsupportedMediaType) -> JSONResponse:
+    logging.exception(f'Unsupported media type exception occurred: {exc}')
+    return exc.json_response()
+
+
+@api.exception_handler(InternalServerError)
+async def bad_multipart_exception_handler(_, exc: InternalServerError) -> JSONResponse:
+    logging.exception(f'Internal server error exception occurred: {exc}')
+    return exc.json_response()
+
+
+@api.exception_handler(NotSupported)
+async def bad_multipart_exception_handler(_, exc: NotSupported) -> JSONResponse:
+    logging.exception(f'Not supported exception occurred: {exc}')
+    return exc.json_response()
 
 
 if __name__ == '__main__':

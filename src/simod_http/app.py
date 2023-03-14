@@ -10,11 +10,12 @@ import pika
 from fastapi.responses import JSONResponse
 from pika.spec import PERSISTENT_DELIVERY_MODE
 from pydantic import BaseModel, BaseSettings
+from starlette.exceptions import HTTPException
 
 
 class Error(BaseModel):
     message: str
-    details: Union[Any, None] = None
+    detail: Union[Any, None] = None
 
 
 class RequestStatus(str, Enum):
@@ -22,8 +23,9 @@ class RequestStatus(str, Enum):
     ACCEPTED = 'accepted'
     PENDING = 'pending'
     RUNNING = 'running'
-    SUCCESS = 'succeeded'
-    FAILURE = 'failed'
+    SUCCEEDED = 'succeeded'
+    FAILED = 'failed'
+    DELETED = 'deleted'
 
 
 class NotificationMethod(str, Enum):
@@ -47,6 +49,15 @@ class Response(BaseModel):
         return JSONResponse(
             status_code=status_code,
             content=self.dict(),
+        )
+
+    @staticmethod
+    def from_http_exception(exc: HTTPException) -> 'Response':
+        return Response(
+            request_id='N/A',
+            request_status=RequestStatus.UNKNOWN,
+            error=Error(message=exc.detail),
+            archive_url=None,
         )
 
 
@@ -154,7 +165,7 @@ class Application(BaseSettings):
                 request_id=request_id,
                 request_status=RequestStatus.UNKNOWN,
                 archive_url=None,
-                message='Request is not found on the server',
+                message='Request not found',
             )
 
         request_info_path = request_dir / 'request.json'
@@ -182,7 +193,7 @@ class Application(BaseSettings):
         return request
 
     def make_results_url_for(self, request: JobRequest) -> Union[str, None]:
-        if request.status == RequestStatus.SUCCESS:
+        if request.status == RequestStatus.SUCCEEDED:
             if self.simod_http_port == 80:
                 port = ''
             else:
@@ -213,17 +224,26 @@ class Application(BaseSettings):
 class BaseRequestException(Exception):
     _status_code = 500
 
+    request_id = 'N/A'
+    request_status = RequestStatus.UNKNOWN
+    archive_url = None
+    message = 'Internal server error'
+
     def __init__(
             self,
-            request_id: str,
-            message: str,
-            request_status: RequestStatus,
+            request_id: Union[str, None] = None,
+            message: Union[str, None] = None,
+            request_status: Union[RequestStatus, None] = None,
             archive_url: Union[str, None] = None,
     ):
-        self.request_id = request_id
-        self.request_status = request_status
-        self.archive_url = archive_url
-        self.message = message
+        if request_id is not None:
+            self.request_id = request_id
+        if message is not None:
+            self.message = message
+        if request_status is not None:
+            self.request_status = request_status
+        if archive_url is not None:
+            self.archive_url = archive_url
 
     @property
     def status_code(self) -> int:

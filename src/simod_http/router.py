@@ -1,5 +1,6 @@
 import logging
 import re
+import shutil
 from pathlib import Path
 from typing import Union, Optional
 
@@ -40,6 +41,41 @@ async def read_discovery_file(request_id: str, file_name: str):
     )
 
 
+def _infer_media_type_from_extension(file_name) -> str:
+    if file_name.endswith('.csv'):
+        media_type = 'text/csv'
+    elif file_name.endswith('.xml'):
+        media_type = 'application/xml'
+    elif file_name.endswith('.xes'):
+        media_type = 'application/xml'
+    elif file_name.endswith('.bpmn'):
+        media_type = 'application/xml'
+    elif file_name.endswith('.json'):
+        media_type = 'application/json'
+    elif file_name.endswith('.png'):
+        media_type = 'image/png'
+    elif file_name.endswith('.jpg') or file_name.endswith('.jpeg'):
+        media_type = 'image/jpeg'
+    elif file_name.endswith('.pdf'):
+        media_type = 'application/pdf'
+    elif file_name.endswith('.txt'):
+        media_type = 'text/plain'
+    elif file_name.endswith('.zip'):
+        media_type = 'application/zip'
+    elif file_name.endswith('.gz'):
+        media_type = 'application/gzip'
+    elif file_name.endswith('.tar'):
+        media_type = 'application/tar'
+    elif file_name.endswith('.tar.gz'):
+        media_type = 'application/tar+gzip'
+    elif file_name.endswith('.tar.bz2'):
+        media_type = 'application/x-bzip2'
+    else:
+        media_type = 'application/octet-stream'
+
+    return media_type
+
+
 @router.get("/discoveries/{request_id}")
 async def read_discovery(request_id: str) -> AppResponse:
     """
@@ -55,7 +91,7 @@ async def read_discovery(request_id: str) -> AppResponse:
 
 
 @router.patch("/discoveries/{request_id}")
-async def update_discovery(request_id: str, patch_request: PatchJobRequest) -> AppResponse:
+async def patch_discovery(request_id: str, patch_request: PatchJobRequest) -> AppResponse:
     """
     Update the status of the request.
     """
@@ -85,7 +121,7 @@ async def create_discovery(
     request = app.new_request_from_params(callback_url, email)
 
     if email is not None:
-        request.status = RequestStatus.FAILURE
+        request.status = RequestStatus.FAILED
         request.save()
 
         raise NotSupported(
@@ -120,7 +156,7 @@ def process_post_request(configuration: UploadFile, event_log: UploadFile, reque
         app.publish_request(request)
         request.status = RequestStatus.PENDING
     except Exception as e:
-        request.status = RequestStatus.FAILURE
+        request.status = RequestStatus.FAILED
         logging.error(e)
     finally:
         request.save()
@@ -172,36 +208,15 @@ def _infer_event_log_file_extension_from_header(content_type: str) -> Union[str,
         return None
 
 
-def _infer_media_type_from_extension(file_name) -> str:
-    if file_name.endswith('.csv'):
-        media_type = 'text/csv'
-    elif file_name.endswith('.xml'):
-        media_type = 'application/xml'
-    elif file_name.endswith('.xes'):
-        media_type = 'application/xml'
-    elif file_name.endswith('.bpmn'):
-        media_type = 'application/xml'
-    elif file_name.endswith('.json'):
-        media_type = 'application/json'
-    elif file_name.endswith('.png'):
-        media_type = 'image/png'
-    elif file_name.endswith('.jpg') or file_name.endswith('.jpeg'):
-        media_type = 'image/jpeg'
-    elif file_name.endswith('.pdf'):
-        media_type = 'application/pdf'
-    elif file_name.endswith('.txt'):
-        media_type = 'text/plain'
-    elif file_name.endswith('.zip'):
-        media_type = 'application/zip'
-    elif file_name.endswith('.gz'):
-        media_type = 'application/gzip'
-    elif file_name.endswith('.tar'):
-        media_type = 'application/tar'
-    elif file_name.endswith('.tar.gz'):
-        media_type = 'application/tar+gzip'
-    elif file_name.endswith('.tar.bz2'):
-        media_type = 'application/x-bzip2'
-    else:
-        media_type = 'application/octet-stream'
+@router.delete("/discoveries/{request_id}")
+async def delete_discovery(request_id: str) -> AppResponse:
+    request = app.load_request(request_id)
 
-    return media_type
+    logging.info(f'Deleting request: {request.id}, {request.status}')
+    shutil.rmtree(request.output_dir, ignore_errors=True)
+
+    return AppResponse(
+        request_id=request_id,
+        request_status=RequestStatus.DELETED,
+        archive_url=None,
+    )
