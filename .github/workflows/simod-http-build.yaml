@@ -41,6 +41,9 @@ jobs:
       - name: Install
         run: poetry install
 
+      - name: Test
+        run: poetry run pytest
+
       - name: Assign a version tag
         run: |
           git tag ${{ steps.versioning.outputs.version }}
