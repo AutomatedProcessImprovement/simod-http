@@ -6,11 +6,11 @@ from pathlib import Path
 from typing import Union, Any, Optional
 
 import pandas as pd
-import pika
 from fastapi.responses import JSONResponse
-from pika.spec import PERSISTENT_DELIVERY_MODE
 from pydantic import BaseModel, BaseSettings
 from starlette.exceptions import HTTPException
+
+from simod_http.broker_client import BrokerClient
 
 
 class Error(BaseModel):
@@ -136,6 +136,8 @@ class Application(BaseSettings):
     simod_exchange_name: str = 'simod'
     simod_pending_routing_key: str = 'requests.status.pending'
 
+    broker_client: Union[BrokerClient, None] = None
+
     class Config:
         env_file = ".env"
 
@@ -155,6 +157,12 @@ class Application(BaseSettings):
             app = Application(_env_file='.env.production')
 
         app.simod_http_storage_path = Path(app.simod_http_storage_path)
+
+        app.broker_client = BrokerClient(
+            app.broker_url,
+            app.simod_exchange_name,
+            app.simod_pending_routing_key,
+        )
 
         return app
 
@@ -205,20 +213,11 @@ class Application(BaseSettings):
         return None
 
     def publish_request(self, request: JobRequest):
-        parameters = pika.URLParameters(self.broker_url)
-        connection = pika.BlockingConnection(parameters)
-        channel = connection.channel()
-        channel.exchange_declare(exchange=self.simod_exchange_name, exchange_type='topic', durable=True)
-        channel.basic_publish(
-            exchange=self.simod_exchange_name,
-            routing_key=self.simod_pending_routing_key,
-            body=request.id.encode(),
-            properties=pika.BasicProperties(
-                delivery_mode=PERSISTENT_DELIVERY_MODE,
-            ),
-        )
-        connection.close()
-        logging.info(f'Published request {request.id} to the {self.simod_pending_routing_key} queue')
+        if self.broker_client is None:
+            logging.error('Broker client is not initialized')
+            raise InternalServerError(message='Broker client is not initialized')
+
+        self.broker_client.publish_request(request.id)
 
 
 class BaseRequestException(Exception):

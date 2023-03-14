@@ -1,0 +1,23 @@
+services:
+  simod-http:
+    image: nokal/simod-http:0.5.2
+    volumes:
+      - /tmp/simod:/tmp/simod-data
+    environment:
+      - BROKER_URL=amqp://guest:guest@rabbitmq-service:5672
+      - SIMOD_EXCHANGE_NAME=simod
+      - SIMOD_PENDING_ROUTING_KEY=requests.status.pending
+      - SIMOD_HTTP_PORT=8000
+      - SIMOD_HTTP_STORAGE_PATH=/tmp/simod-data
+      - SIMOD_HTTP_LOG_LEVEL=debug
+    ports:
+      - 8000:8000
+
+  rabbitmq-service:
+    image: rabbitmq:3.11-management-alpine
+    ports:
+      - 5672:5672
+      - 15672:15672
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
