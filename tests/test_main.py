@@ -10,9 +10,6 @@ from simod_http.main import api
 
 class TestAPI:
     client = TestClient(api)
-    assets_dir = Path('./assets')
-    configuration_path = assets_dir / 'sample.yaml'
-    event_log_path = assets_dir / 'PurchasingExample.xes'
 
     def test_root(self):
         response = self.client.get('/')
@@ -54,26 +51,6 @@ class TestAPI:
         assert 'request_id' in response.json()
 
         self.delete_discovery(response.json()['request_id'])
-
-    def post_discovery(self) -> Response:
-        data = MultipartEncoder(
-            fields={
-                'configuration': ('configuration.yaml', self.configuration_path.open('rb'), 'text/yaml'),
-                'event_log': ('event_log.xes', self.event_log_path.open('rb'), 'application/xml'),
-            }
-        )
-
-        response = self.client.post(
-            '/discoveries',
-            headers={"Content-Type": data.content_type},
-            content=data.to_string(),
-        )
-
-        return response
-
-    def delete_discovery(self, request_id: str) -> Response:
-        response = self.client.delete(f'/discoveries/{request_id}')
-        return response
 
     def test_discoveries_file(self):
         response = self.post_discovery()
@@ -123,3 +100,31 @@ class TestAPI:
             'archive_url': None,
             'error': None,
         }
+
+    def post_discovery(self) -> Response:
+        assets_dir = self.path_to_current_file_dir() / 'assets'
+        configuration_path = assets_dir / 'sample.yaml'
+        event_log_path = assets_dir / 'PurchasingExample.xes'
+
+        data = MultipartEncoder(
+            fields={
+                'configuration': ('configuration.yaml', configuration_path.open('rb'), 'text/yaml'),
+                'event_log': ('event_log.xes', event_log_path.open('rb'), 'application/xml'),
+            }
+        )
+
+        response = self.client.post(
+            '/discoveries',
+            headers={"Content-Type": data.content_type},
+            content=data.to_string(),
+        )
+
+        return response
+
+    def delete_discovery(self, request_id: str) -> Response:
+        response = self.client.delete(f'/discoveries/{request_id}')
+        return response
+
+    @staticmethod
+    def path_to_current_file_dir() -> Path:
+        return Path(__file__).parent
