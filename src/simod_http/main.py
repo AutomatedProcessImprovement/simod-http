@@ -36,7 +36,15 @@ async def read_discovery_file(request_id: str, file_name: str):
     """
     Get a file from a discovery request.
     """
-    request = api.state.app.load_request(request_id)
+    try:
+        request = api.state.app.load_request(request_id)
+    except NotFound as e:
+        raise e
+    except Exception as e:
+        raise InternalServerError(
+            request_id=request_id,
+            message=f'Failed to load request {request_id}: {e}',
+        )
 
     file_path = request.output_dir / file_name
     if not file_path.exists():
@@ -97,7 +105,15 @@ async def read_discovery(request_id: str) -> JSONResponse:
     """
     Get the status of the request.
     """
-    request = api.state.app.load_request(request_id)
+    try:
+        request = api.state.app.load_request(request_id)
+    except NotFound as e:
+        raise e
+    except Exception as e:
+        raise InternalServerError(
+            request_id=request_id,
+            message=f'Failed to load request {request_id}: {e}',
+        )
 
     return AppResponse(
         request_id=request_id,
@@ -111,7 +127,15 @@ async def patch_discovery(request_id: str, patch_request: PatchJobRequest) -> JS
     """
     Update the status of the request.
     """
-    request = api.state.app.load_request(request_id)
+    try:
+        request = api.state.app.load_request(request_id)
+    except NotFound as e:
+        raise e
+    except Exception as e:
+        raise InternalServerError(
+            request_id=request_id,
+            message=f'Failed to load request {request_id}: {e}',
+        )
 
     request.status = patch_request.status
     request.save()
@@ -228,7 +252,15 @@ def _infer_event_log_file_extension_from_header(content_type: str) -> Union[str,
 
 @api.delete("/discoveries/{request_id}")
 async def delete_discovery(request_id: str) -> JSONResponse:
-    request = api.state.app.load_request(request_id)
+    try:
+        request = api.state.app.load_request(request_id)
+    except NotFound as e:
+        raise e
+    except Exception as e:
+        raise InternalServerError(
+            request_id=request_id,
+            message=f'Failed to load request {request_id}: {e}',
+        )
 
     logging.info(f'Deleting request: {request.id}, {request.status}')
     shutil.rmtree(request.output_dir, ignore_errors=True)
@@ -277,6 +309,8 @@ async def application_shutdown():
 
         try:
             request = api.state.app.load_request(request_dir.name)
+        except NotFound as e:
+            raise e
         except Exception as e:
             logging.error(f'Failed to load request: {request_dir.name}, {str(e)}')
             continue
@@ -308,6 +342,8 @@ async def clean_up():
 
             try:
                 request = app.load_request(request_dir.name)
+            except NotFound as e:
+                raise e
             except Exception as e:
                 logging.error(f'Failed to load request: {request_dir.name}, {str(e)}')
                 continue
@@ -401,3 +437,14 @@ async def bad_multipart_exception_handler(_, exc: InternalServerError) -> JSONRe
 async def bad_multipart_exception_handler(_, exc: NotSupported) -> JSONResponse:
     logging.exception(f'Not supported exception occurred: {exc}')
     return exc.json_response()
+
+
+@api.exception_handler(Exception)
+async def exception_handler(_, exc: Exception) -> JSONResponse:
+    logging.exception(f'Exception occurred: {exc}')
+    return JSONResponse(
+        status_code=500,
+        content={
+            'error': {'message': 'Internal Server Error'},
+        },
+    )
