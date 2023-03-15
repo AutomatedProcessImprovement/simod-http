@@ -40,8 +40,8 @@ class NotificationSettings(BaseModel):
 
 
 class Response(BaseModel):
-    request_id: str
-    request_status: RequestStatus
+    request_id: Union[str, None]
+    request_status: Union[RequestStatus, None]
     error: Union[Error, None]
     archive_url: Union[str, None]
 
@@ -54,10 +54,7 @@ class Response(BaseModel):
     @staticmethod
     def from_http_exception(exc: HTTPException) -> 'Response':
         return Response(
-            request_id='N/A',
-            request_status=RequestStatus.UNKNOWN,
             error=Error(message=exc.detail),
-            archive_url=None,
         )
 
 
@@ -149,6 +146,8 @@ class Application(BaseSettings):
 
     @staticmethod
     def init() -> 'Application':
+        logging.info('Initializing application')
+
         debug = os.environ.get('SIMOD_HTTP_DEBUG', 'false').lower() == 'true'
 
         if debug:
@@ -223,8 +222,8 @@ class Application(BaseSettings):
 class BaseRequestException(Exception):
     _status_code = 500
 
-    request_id = 'N/A'
-    request_status = RequestStatus.UNKNOWN
+    request_id = None
+    request_status = None
     archive_url = None
     message = 'Internal server error'
 
@@ -259,28 +258,30 @@ class BaseRequestException(Exception):
     def json_response(self) -> JSONResponse:
         return JSONResponse(
             status_code=self.status_code,
-            content=self.make_response().dict(),
+            content=self.make_response().dict(exclude_none=True),
         )
 
 
 class NotFound(BaseRequestException):
     _status_code = 404
+    message = 'Not Found'
 
 
 class BadMultipartRequest(BaseRequestException):
     _status_code = 400
+    message = 'Bad Multipart Request'
 
 
 class UnsupportedMediaType(BaseRequestException):
     _status_code = 415
+    message = 'Unsupported Media Type'
 
 
 class InternalServerError(BaseRequestException):
     _status_code = 500
+    message = 'Internal Server Error'
 
 
 class NotSupported(BaseRequestException):
     _status_code = 501
-
-
-app = Application.init()
+    message = 'Not Supported'
