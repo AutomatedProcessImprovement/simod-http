@@ -6,11 +6,18 @@ from pathlib import Path
 from typing import Union, Any, Optional
 
 import pandas as pd
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, BaseSettings
 from starlette.exceptions import HTTPException
 
 from simod_http.broker_client import BrokerClient
+
+
+def make_app() -> FastAPI:
+    api = FastAPI()
+    api.state.app = Application.init()
+    return api
 
 
 class Error(BaseModel):
@@ -48,7 +55,7 @@ class Response(BaseModel):
     def json_response(self, status_code: int) -> JSONResponse:
         return JSONResponse(
             status_code=status_code,
-            content=self.dict(),
+            content=self.dict(exclude_none=True),
         )
 
     @staticmethod

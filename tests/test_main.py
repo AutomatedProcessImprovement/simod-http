@@ -1,15 +1,38 @@
 from pathlib import Path
+from unittest.mock import MagicMock
 
+from fastapi import FastAPI
 from httpx import Response
+from pika import BlockingConnection
 from requests_toolbelt import MultipartEncoder
 from starlette.testclient import TestClient
 
 from simod_http.app import RequestStatus
+from simod_http.broker_client import BrokerClient
 from simod_http.main import api
 
 
+def stub_broker_client() -> BrokerClient:
+    channel = MagicMock()
+    connection = MagicMock(spec=BlockingConnection)
+    connection.channel.return_value = channel
+    client = BrokerClient('', '', '', connection=connection)
+    client.publish_request = MagicMock()
+    client.connect = MagicMock()
+    return client
+
+
+def inject_broker_client(api: FastAPI, client: BrokerClient) -> FastAPI:
+    api.state.app.broker_client = client
+    return api
+
+
+def path_to_current_file_dir() -> Path:
+    return Path(__file__).parent
+
+
 class TestAPI:
-    client = TestClient(api)
+    client = TestClient(inject_broker_client(api, stub_broker_client()))
 
     def test_root(self):
         response = self.client.get('/')
@@ -24,8 +47,7 @@ class TestAPI:
         assert response.json() == {
             'request_id': '123',
             'request_status': RequestStatus.UNKNOWN.value,
-            'archive_url': None,
-            'error': {'detail': None, 'message': 'Request not found'},
+            'error': {'message': 'Request not found'},
         }
 
     def test_discoveries_patch(self):
@@ -61,10 +83,9 @@ class TestAPI:
 
         assert response.status_code == 404
         assert response.json() == {
-            'archive_url': None,
-            'error': {'detail': None, 'message': f'File not found: {archive_file}'},
+            'error': {'message': f'File not found: {archive_file}'},
             'request_id': request_id,
-            'request_status': RequestStatus.FAILED.value,
+            'request_status': RequestStatus.PENDING.value,
         }
 
         self.delete_discovery(response.json()['request_id'])
@@ -81,8 +102,6 @@ class TestAPI:
         assert response.json() == {
             'request_id': request_id,
             'request_status': RequestStatus.PENDING.value,
-            'archive_url': None,
-            'error': None,
         }
 
         self.delete_discovery(response.json()['request_id'])
@@ -97,12 +116,10 @@ class TestAPI:
         assert response.json() == {
             'request_id': request_id,
             'request_status': RequestStatus.DELETED.value,
-            'archive_url': None,
-            'error': None,
         }
 
     def post_discovery(self) -> Response:
-        assets_dir = self.path_to_current_file_dir() / 'assets'
+        assets_dir = path_to_current_file_dir() / 'assets'
         configuration_path = assets_dir / 'sample.yaml'
         event_log_path = assets_dir / 'PurchasingExample.xes'
 
@@ -124,7 +141,3 @@ class TestAPI:
     def delete_discovery(self, request_id: str) -> Response:
         response = self.client.delete(f'/discoveries/{request_id}')
         return response
-
-    @staticmethod
-    def path_to_current_file_dir() -> Path:
-        return Path(__file__).parent

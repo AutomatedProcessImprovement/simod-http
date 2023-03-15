@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Union, Optional
 
 import pandas as pd
-from fastapi import FastAPI
 from fastapi import Response, Form
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -15,13 +14,11 @@ from starlette.datastructures import UploadFile
 from starlette.exceptions import HTTPException
 from uvicorn.config import LOGGING_CONFIG
 
-from simod_http.app import Response, BadMultipartRequest, \
-    InternalServerError, Application
+from simod_http.app import Response, BadMultipartRequest, InternalServerError, make_app
 from simod_http.app import Response as AppResponse, RequestStatus, NotFound, UnsupportedMediaType, NotSupported, \
     JobRequest, PatchJobRequest
 
-api = FastAPI()
-api.state.app = Application.init()
+api = make_app()
 
 logging_config = LOGGING_CONFIG
 logging_config['formatters']['default']['fmt'] = api.state.app.simod_http_log_format
@@ -30,7 +27,7 @@ logging_config['formatters']['access']['fmt'] = api.state.app.simod_http_log_for
 
 
 @api.get('/{any_str}')
-async def root() -> Response:
+async def root() -> JSONResponse:
     raise NotFound()
 
 
@@ -96,7 +93,7 @@ def _infer_media_type_from_extension(file_name) -> str:
 
 
 @api.get("/discoveries/{request_id}")
-async def read_discovery(request_id: str) -> AppResponse:
+async def read_discovery(request_id: str) -> JSONResponse:
     """
     Get the status of the request.
     """
@@ -105,12 +102,12 @@ async def read_discovery(request_id: str) -> AppResponse:
     return AppResponse(
         request_id=request_id,
         request_status=request.status,
-        archive_url=app.make_results_url_for(request),
-    )
+        archive_url=api.state.app.make_results_url_for(request),
+    ).json_response(status_code=200)
 
 
 @api.patch("/discoveries/{request_id}")
-async def patch_discovery(request_id: str, patch_request: PatchJobRequest) -> AppResponse:
+async def patch_discovery(request_id: str, patch_request: PatchJobRequest) -> JSONResponse:
     """
     Update the status of the request.
     """
@@ -122,8 +119,8 @@ async def patch_discovery(request_id: str, patch_request: PatchJobRequest) -> Ap
     return AppResponse(
         request_id=request_id,
         request_status=request.status,
-        archive_url=app.make_results_url_for(request),
-    )
+        archive_url=api.state.app.make_results_url_for(request),
+    ).json_response(status_code=200)
 
 
 @api.post("/discoveries")
@@ -230,7 +227,7 @@ def _infer_event_log_file_extension_from_header(content_type: str) -> Union[str,
 
 
 @api.delete("/discoveries/{request_id}")
-async def delete_discovery(request_id: str) -> AppResponse:
+async def delete_discovery(request_id: str) -> JSONResponse:
     request = api.state.app.load_request(request_id)
 
     logging.info(f'Deleting request: {request.id}, {request.status}')
@@ -240,7 +237,7 @@ async def delete_discovery(request_id: str) -> AppResponse:
         request_id=request_id,
         request_status=RequestStatus.DELETED,
         archive_url=None,
-    )
+    ).json_response(status_code=200)
 
 
 @api.on_event('startup')

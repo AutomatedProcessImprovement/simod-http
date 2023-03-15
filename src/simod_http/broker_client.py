@@ -1,18 +1,27 @@
 import logging
 import time
+from typing import Union
 
 import pika
+import pika.exceptions
 from pika.spec import PERSISTENT_DELIVERY_MODE
 
 
 class BrokerClient:
-    def __init__(self, broker_url: str, exchange_name: str, routing_key: str):
+    def __init__(
+            self,
+            broker_url: str,
+            exchange_name: str,
+            routing_key: str,
+            connection: Union[pika.BlockingConnection, None] = None,
+            channel: Union[pika.adapters.blocking_connection.BlockingChannel, None] = None,
+    ):
         self._broker_url = broker_url
         self._exchange_name = exchange_name
         self._routing_key = routing_key
 
-        self._connection = None
-        self._channel = None
+        self._connection = connection
+        self._channel = channel
 
         self._retries = 5
         self._retry_delay = 1
@@ -38,7 +47,7 @@ class BrokerClient:
         self._retries = 5
 
     def publish_request(self, request_id: str):
-        if self._connection is None or self._channel is None:
+        if self._connection is None or self._channel is None or self._connection.is_closed or self._channel.is_closed:
             self.connect()
 
         try:
@@ -62,5 +71,11 @@ class BrokerClient:
         except pika.exceptions.ChannelClosed:
             logging.warning(f'Failed to publish request {request_id} to {self._routing_key} '
                             f'because the channel is closed. Reconnecting...')
+            self.connect()
+            self.publish_request(request_id)
+
+        except pika.exceptions.StreamLostError:
+            logging.warning(f'Failed to publish request {request_id} to {self._routing_key} '
+                            f'because the stream is lost. Reconnecting...')
             self.connect()
             self.publish_request(request_id)
