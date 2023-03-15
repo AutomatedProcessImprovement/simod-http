@@ -127,8 +127,8 @@ class Application(BaseSettings):
     simod_http_storage_cleaning_timedelta: int = 60
 
     # Logging levels: CRITICAL, FATAL, ERROR, WARNING, WARN, INFO, DEBUG, NOTSET
-    simod_http_logging_level: str = 'debug'
-    simod_http_logging_format = '%(asctime)s \t %(name)s \t %(levelname)s \t %(message)s'
+    simod_http_log_level: str = 'debug'
+    simod_http_log_format = '%(asctime)s \t %(name)s \t %(levelname)s \t %(message)s'
     simod_http_log_path: Union[str, None] = None
 
     # Broker settings
@@ -139,7 +139,7 @@ class Application(BaseSettings):
     broker_client: Union[BrokerClient, None] = None
 
     class Config:
-        env_file = ".env"
+        env_file = '.env'
 
     def __init__(self, **data):
         super().__init__(**data)

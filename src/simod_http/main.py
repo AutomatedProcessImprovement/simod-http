@@ -32,14 +32,14 @@ async def application_startup():
 
     if len(logging_handlers) > 0:
         logging.basicConfig(
-            level=app.simod_http_logging_level.upper(),
+            level=app.simod_http_log_level.upper(),
             handlers=logging_handlers,
-            format=app.simod_http_logging_format,
+            format=app.simod_http_log_format,
         )
     else:
         logging.basicConfig(
-            level=app.simod_http_logging_level.upper(),
-            format=app.simod_http_logging_format,
+            level=app.simod_http_log_level.upper(),
+            format=app.simod_http_log_format,
         )
 
     logging.debug(f'Application settings: {app}')
