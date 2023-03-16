@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "simod-http"
-version = "0.6.1"
+version = "0.6.2"
 description = "HTTP API for handling Simod job requests"
 authors = ["Ihar Suvorau <ihar.suvorau@gmail.com>"]
 

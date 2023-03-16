@@ -1,3 +1,4 @@
+import random
 from pathlib import Path
 
 from locust import HttpUser, task
@@ -7,6 +8,9 @@ from requests_toolbelt import MultipartEncoder
 class User(HttpUser):
     endpoint_url = 'http://localhost:8000/discoveries'
     assets_dir = Path('./assets')
+
+    def wait_time(self):
+        return random.expovariate(1 / 60)
 
     @task
     def post(self):
