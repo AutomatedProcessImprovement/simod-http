@@ -476,6 +476,7 @@ async def bad_multipart_exception_handler(_, exc: InternalServerError) -> JSONRe
     global api
 
     app = api.state.app
+
     app.logger.exception(f'Internal server error exception occurred: {exc}')
     return exc.json_response()
 
@@ -485,6 +486,7 @@ async def bad_multipart_exception_handler(_, exc: NotSupported) -> JSONResponse:
     global api
 
     app = api.state.app
+
     app.logger.exception(f'Not supported exception occurred: {exc}')
     return exc.json_response()
 
@@ -494,6 +496,7 @@ async def exception_handler(_, exc: Exception) -> JSONResponse:
     global api
 
     app = api.state.app
+
     app.logger.exception(f'Exception occurred: {exc}')
     return JSONResponse(
         status_code=500,

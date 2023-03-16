@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, BaseSettings
 from starlette.exceptions import HTTPException
 
-from simod_http.broker_client import BrokerClient
+from simod_http.broker_client import BrokerClient, make_broker_client
 
 
 def make_app() -> FastAPI:
@@ -172,12 +172,8 @@ class Application(BaseSettings):
 
         app.simod_http_storage_path = Path(app.simod_http_storage_path)
 
-        app.broker_client = BrokerClient(
-            app.broker_url,
-            app.simod_exchange_name,
-            app.simod_pending_routing_key,
-        )
-
+        client = make_broker_client(app.broker_url, app.simod_exchange_name, app.simod_pending_routing_key)
+        app.broker_client = client
         app.logger.info(f'Broker client initialized: {app.broker_client}')
 
         return app
