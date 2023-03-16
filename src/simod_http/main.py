@@ -158,7 +158,11 @@ async def create_discovery(
     """
     Create a new business process simulation model discovery request.
     """
-    request = api.state.app.new_request_from_params(callback_url, email)
+    global api
+
+    app = api.state.app
+
+    request = app.new_request_from_params(callback_url, email)
 
     if email is not None:
         request.status = RequestStatus.FAILED
@@ -173,7 +177,7 @@ async def create_discovery(
     request.status = RequestStatus.ACCEPTED
     request.save()
 
-    logging.info(f'New request: {request.id}, {request.status}')
+    app.logger.info(f'New request {request.id}: status={request.status}')
 
     background_tasks.add_task(process_post_request, configuration, event_log, request)
 
@@ -182,13 +186,17 @@ async def create_discovery(
 
 
 def process_post_request(configuration: UploadFile, event_log: UploadFile, request: JobRequest):
-    logging.info(f'Processing request: {request.id}, {request.status}')
+    global api
+
+    app = api.state.app
 
     event_log_path = _save_event_log(event_log, request)
-    logging.info(f'Processing request: {request.id}, {request.status}, event_log_path: {event_log_path}')
-
     configuration_path = _update_config_and_save(configuration, event_log_path, request)
-    logging.info(f'Processing request: {request.id}, {request.status}, configuration_path: {configuration_path}')
+
+    app.logger.info(f'Processing request {request.id}: '
+                    f'status={request.status}, '
+                    f'configuration_path={configuration_path}, '
+                    f'event_log_path={event_log_path}')
 
     request.configuration_path = configuration_path.absolute()
 
@@ -197,12 +205,12 @@ def process_post_request(configuration: UploadFile, event_log: UploadFile, reque
         request.status = RequestStatus.PENDING
     except Exception as e:
         request.status = RequestStatus.FAILED
-        logging.error(e)
+        app.logger.error(e)
         raise e
     finally:
         request.save()
 
-    logging.info(f'Processed request {request.id}, {request.status}')
+    app.logger.info(f'Processed request {request.id}, {request.status}')
 
 
 def _update_config_and_save(configuration: UploadFile, event_log_path: Path, request: JobRequest):
@@ -252,8 +260,12 @@ def _infer_event_log_file_extension_from_header(content_type: str) -> Union[str,
 
 @api.delete("/discoveries/{request_id}")
 async def delete_discovery(request_id: str) -> JSONResponse:
+    global api
+
+    app = api.state.app
+
     try:
-        request = api.state.app.load_request(request_id)
+        request = app.load_request(request_id)
     except NotFound as e:
         raise e
     except Exception as e:
@@ -262,7 +274,7 @@ async def delete_discovery(request_id: str) -> JSONResponse:
             message=f'Failed to load request {request_id}: {e}',
         )
 
-    logging.info(f'Deleting request: {request.id}, {request.status}')
+    app.logger.info(f'Deleting request: {request.id}, {request.status}')
     shutil.rmtree(request.output_dir, ignore_errors=True)
 
     return AppResponse(
@@ -274,6 +286,8 @@ async def delete_discovery(request_id: str) -> JSONResponse:
 
 @api.on_event('startup')
 async def application_startup():
+    global api
+
     app = api.state.app
 
     logging_handlers = []
@@ -292,27 +306,28 @@ async def application_startup():
             format=app.simod_http_log_format,
         )
 
-    logging.debug(f'Application settings: {api.state.app.__dict__}')
-
 
 @api.on_event('shutdown')
 async def application_shutdown():
-    requests_dir = Path(api.state.app.simod_http_storage_path) / 'requests'
+    global api
+
+    app = api.state.app
+    requests_dir = Path(app.simod_http_storage_path) / 'requests'
 
     if not requests_dir.exists():
         return
 
     for request_dir in requests_dir.iterdir():
-        logging.debug(f'Checking request directory before shutting down: {request_dir}')
+        app.logger.debug(f'Checking request directory before shutting down: {request_dir}')
 
         await _remove_empty_or_orphaned_request_dir(request_dir)
 
         try:
-            request = api.state.app.load_request(request_dir.name)
+            request = app.load_request(request_dir.name)
         except NotFound as e:
             raise e
         except Exception as e:
-            logging.error(f'Failed to load request: {request_dir.name}, {str(e)}')
+            app.logger.error(f'Failed to load request: {request_dir.name}, {str(e)}')
             continue
 
         # At the end, there are only 'failed' or 'succeeded' requests
@@ -325,6 +340,8 @@ async def application_shutdown():
 @api.on_event('startup')
 @repeat_every(seconds=api.state.app.simod_http_storage_cleaning_timedelta)
 async def clean_up():
+    global api
+
     app = api.state.app
     requests_dir = Path(api.state.app.simod_http_storage_path) / 'requests'
 
@@ -336,7 +353,7 @@ async def clean_up():
 
     for request_dir in requests_dir.iterdir():
         if request_dir.is_dir():
-            logging.debug(f'Checking request directory for expired data: {request_dir}')
+            app.logger.debug(f'Checking request directory for expired data: {request_dir}')
 
             await _remove_empty_or_orphaned_request_dir(request_dir)
 
@@ -345,7 +362,7 @@ async def clean_up():
             except NotFound as e:
                 raise e
             except Exception as e:
-                logging.error(f'Failed to load request: {request_dir.name}, {str(e)}')
+                app.logger.error(f'Failed to load request: {request_dir.name}, {str(e)}')
                 continue
 
             await _remove_expired_requests(current_timestamp, expire_after_delta, request, request_dir)
@@ -354,9 +371,12 @@ async def clean_up():
 
 
 async def _remove_not_running_not_timestamped_requests(request: JobRequest, request_dir: Path):
+    global api
+
+    app = api.state.app
     # Removes requests without timestamp that are not running
     if request.timestamp is None and request.status not in [RequestStatus.ACCEPTED, RequestStatus.RUNNING]:
-        logging.info(f'Removing request folder for {request_dir.name}, no timestamp and not running')
+        app.logger.info(f'Removing request folder for {request_dir.name}, no timestamp and not running')
         shutil.rmtree(request_dir, ignore_errors=True)
 
 
@@ -366,31 +386,43 @@ async def _remove_expired_requests(
         request: JobRequest,
         request_dir: Path,
 ):
+    global api
+
+    app = api.state.app
+
     if request.status in [RequestStatus.UNKNOWN, RequestStatus.SUCCEEDED, RequestStatus.FAILED]:
         expired_at = request.timestamp + expire_after_delta
         if expired_at <= current_timestamp:
-            logging.info(f'Removing request folder for {request_dir.name}, expired at {expired_at}')
+            app.logger.info(f'Removing request folder for {request_dir.name}, expired at {expired_at}')
             shutil.rmtree(request_dir, ignore_errors=True)
 
 
 async def _remove_empty_or_orphaned_request_dir(request_dir):
+    global api
+
+    app = api.state.app
+
     if request_dir.is_file():
         return
 
     # Removes empty directories
     if len(list(request_dir.iterdir())) == 0:
-        logging.info(f'Removing empty directory: {request_dir}')
+        app.logger.info(f'Removing empty directory: {request_dir}')
         shutil.rmtree(request_dir, ignore_errors=True)
 
     # Removes orphaned request directories
     if not (request_dir / 'request.json').exists():
-        logging.info(f'Removing request folder for {request_dir.name}, no request.json file')
+        app.logger.info(f'Removing request folder for {request_dir.name}, no request.json file')
         shutil.rmtree(request_dir, ignore_errors=True)
 
 
 @api.exception_handler(HTTPException)
 async def request_exception_handler(_, exc: HTTPException) -> JSONResponse:
-    logging.exception(f'Request exception occurred: {exc}')
+    global api
+
+    app = api.state.app
+
+    app.logger.exception(f'Request exception occurred: {exc}')
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -401,7 +433,11 @@ async def request_exception_handler(_, exc: HTTPException) -> JSONResponse:
 
 @api.exception_handler(RequestValidationError)
 async def validation_exception_handler(_, exc: RequestValidationError) -> JSONResponse:
-    logging.exception(f'Validation exception occurred: {exc}')
+    global api
+
+    app = api.state.app
+
+    app.logger.exception(f'Validation exception occurred: {exc}')
     return JSONResponse(
         status_code=422,
         content={
@@ -417,31 +453,48 @@ async def not_found_exception_handler(_, exc: NotFound) -> JSONResponse:
 
 @api.exception_handler(BadMultipartRequest)
 async def bad_multipart_exception_handler(_, exc: BadMultipartRequest) -> JSONResponse:
-    logging.exception(f'Bad multipart exception occurred: {exc}')
+    global api
+
+    app = api.state.app
+
+    app.logger.exception(f'Bad multipart exception occurred: {exc}')
     return exc.json_response()
 
 
 @api.exception_handler(UnsupportedMediaType)
 async def bad_multipart_exception_handler(_, exc: UnsupportedMediaType) -> JSONResponse:
-    logging.exception(f'Unsupported media type exception occurred: {exc}')
+    global api
+
+    app = api.state.app
+
+    app.logger.exception(f'Unsupported media type exception occurred: {exc}')
     return exc.json_response()
 
 
 @api.exception_handler(InternalServerError)
 async def bad_multipart_exception_handler(_, exc: InternalServerError) -> JSONResponse:
-    logging.exception(f'Internal server error exception occurred: {exc}')
+    global api
+
+    app = api.state.app
+    app.logger.exception(f'Internal server error exception occurred: {exc}')
     return exc.json_response()
 
 
 @api.exception_handler(NotSupported)
 async def bad_multipart_exception_handler(_, exc: NotSupported) -> JSONResponse:
-    logging.exception(f'Not supported exception occurred: {exc}')
+    global api
+
+    app = api.state.app
+    app.logger.exception(f'Not supported exception occurred: {exc}')
     return exc.json_response()
 
 
 @api.exception_handler(Exception)
 async def exception_handler(_, exc: Exception) -> JSONResponse:
-    logging.exception(f'Exception occurred: {exc}')
+    global api
+
+    app = api.state.app
+    app.logger.exception(f'Exception occurred: {exc}')
     return JSONResponse(
         status_code=500,
         content={

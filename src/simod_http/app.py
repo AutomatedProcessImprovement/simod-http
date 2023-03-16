@@ -120,6 +120,8 @@ class Application(BaseSettings):
     Simod application that stores main settings and provides access to internal API.
     """
 
+    logger = logging.getLogger('simod_http.application')
+
     # These host and port are used to compose a link to the resulting archive.
     simod_http_host: str = 'localhost'
     simod_http_port: int = 8000
@@ -151,10 +153,16 @@ class Application(BaseSettings):
         storage_path = Path(self.simod_http_storage_path)
         storage_path.mkdir(parents=True, exist_ok=True)
 
+        logging.basicConfig(
+            level=self.simod_http_log_level.upper(),
+            format=self.simod_http_log_format,
+            filename=self.simod_http_log_path,
+        )
+
+        self.logger.info(f'Application initialized: {self}')
+
     @staticmethod
     def init() -> 'Application':
-        logging.info('Initializing application')
-
         debug = os.environ.get('SIMOD_HTTP_DEBUG', 'false').lower() == 'true'
 
         if debug:
@@ -169,6 +177,8 @@ class Application(BaseSettings):
             app.simod_exchange_name,
             app.simod_pending_routing_key,
         )
+
+        app.logger.info(f'Broker client initialized: {app.broker_client}')
 
         return app
 

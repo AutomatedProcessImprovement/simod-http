@@ -26,6 +26,11 @@ class BrokerClient:
         self._retries = 5
         self._retry_delay = 1
 
+    def __repr__(self):
+        return f'BrokerClient(_broker_url={self._broker_url}, ' \
+               f'_exchange_name={self._exchange_name}, ' \
+               f'_routing_key={self._routing_key})'
+
     def connect(self):
         logging.info(f'Connecting to the broker at {self._broker_url}')
         parameters = pika.URLParameters(self._broker_url)
