@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "simod-http"
-version = "0.6.2"
+version = "0.7.0"
 description = "HTTP API for handling Simod job requests"
 authors = ["Ihar Suvorau <ihar.suvorau@gmail.com>"]
 
@@ -16,6 +16,7 @@ python-multipart = "^0.0.5"
 pydantic = "^1.10.5"
 python-dotenv = "^0.21.1"
 gunicorn = "^20.1.0"
+pymongo = "^4.3.3"
 
 [tool.poetry.dev-dependencies]
 
