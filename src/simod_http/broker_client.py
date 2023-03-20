@@ -7,8 +7,6 @@ import pika
 import pika.exceptions
 from pika.spec import PERSISTENT_DELIVERY_MODE
 
-from simod_http.broker_client_stub import stub_broker_client
-
 
 class BrokerClient:
     def __init__(
@@ -88,10 +86,32 @@ class BrokerClient:
             self.connect()
             self.publish_request(request_id)
 
+        except Exception as e:
+            logging.error(f'Failed to publish request {request_id} to {self._routing_key} '
+                          f'because of an unknown error: {e}')
+            self.basic_publish_request(request_id)
+
+    def basic_publish_request(self, request_id: str):
+        parameters = pika.URLParameters(self._broker_url)
+        connection = pika.BlockingConnection(parameters)
+        channel = connection.channel()
+        channel.exchange_declare(exchange=self._exchange_name, exchange_type='topic', durable=True)
+        channel.basic_publish(
+            exchange=self._exchange_name,
+            routing_key=self._routing_key,
+            body=request_id.encode(),
+            properties=pika.BasicProperties(
+                delivery_mode=PERSISTENT_DELIVERY_MODE,
+            ),
+        )
+        connection.close()
+        logging.info(f'Published request {request_id} to {self._routing_key}')
+
 
 def make_broker_client(broker_url: str, exchange_name: str, routing_key: str) -> BrokerClient:
     fake_broker_client = os.environ.get('SIMOD_FAKE_BROKER_CLIENT', 'false').lower() == 'true'
     if fake_broker_client:
+        from simod_http.broker_client_stub import stub_broker_client
         return stub_broker_client()
     else:
         return BrokerClient(
