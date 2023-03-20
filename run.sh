@@ -1,3 +1,4 @@
 #!/usr/bin/env bash
 
-poetry run uvicorn simod_http.main:api --host $SIMOD_HTTP_HOST --port $SIMOD_HTTP_PORT --log-level $SIMOD_HTTP_LOG_LEVEL
+env
+poetry run gunicorn simod_http.main:api -k uvicorn.workers.UvicornWorker -w $SIMOD_GUNICORN_WORKERS -b $SIMOD_HTTP_ADDRESS --log-level $SIMOD_HTTP_LOG_LEVEL
