@@ -7,7 +7,7 @@ from pika import BlockingConnection
 from requests_toolbelt import MultipartEncoder
 from starlette.testclient import TestClient
 
-from simod_http.app import RequestStatus
+from simod_http.requests import RequestStatus
 from simod_http.broker_client import BrokerClient
 from simod_http.main import api
 

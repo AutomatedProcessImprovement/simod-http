@@ -1,17 +1,20 @@
 import logging
 import os
-import uuid
-from enum import Enum
 from pathlib import Path
-from typing import Union, Any, Optional
+from typing import Union, Any
 
-import pandas as pd
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, BaseSettings
+from pymongo import MongoClient
 from starlette.exceptions import HTTPException
 
 from simod_http.broker_client import BrokerClient, make_broker_client
+from simod_http.files_repository import FilesRepositoryInterface
+from simod_http.files_repository_fs import FileSystemFilesRepository
+from simod_http.requests import RequestStatus, JobRequest
+from simod_http.requests_repository import JobRequestsRepositoryInterface
+from simod_http.requests_repository_mongo import MongoJobRequestsRepository, make_mongo_job_requests_repository
 
 
 def make_app() -> FastAPI:
@@ -23,27 +26,6 @@ def make_app() -> FastAPI:
 class Error(BaseModel):
     message: str
     detail: Union[Any, None] = None
-
-
-class RequestStatus(str, Enum):
-    UNKNOWN = 'unknown'
-    ACCEPTED = 'accepted'
-    PENDING = 'pending'
-    RUNNING = 'running'
-    SUCCEEDED = 'succeeded'
-    FAILED = 'failed'
-    DELETED = 'deleted'
-
-
-class NotificationMethod(str, Enum):
-    HTTP = 'callback'
-    EMAIL = 'email'
-
-
-class NotificationSettings(BaseModel):
-    method: Union[NotificationMethod, None] = None
-    callback_url: Union[str, None] = None
-    email: Union[str, None] = None
 
 
 class Response(BaseModel):
@@ -62,52 +44,6 @@ class Response(BaseModel):
     def from_http_exception(exc: HTTPException) -> 'Response':
         return Response(
             error=Error(message=exc.detail),
-        )
-
-
-class JobRequest(BaseModel):
-    id: str
-    output_dir: Path
-    status: Union[RequestStatus, None] = None
-    configuration_path: Union[Path, None] = None
-    archive_url: Union[str, None] = None
-    timestamp: Union[pd.Timestamp, None] = None
-    notification_settings: Union[NotificationSettings, None] = None
-    notified: bool = False
-
-    class Config:
-        arbitrary_types_allowed = True
-
-    def __str__(self):
-        return f'JobRequest(' \
-               f'id={self.id}, ' \
-               f'output_dir={self.output_dir}, ' \
-               f'status={self.status}, ' \
-               f'configuration_path={self.configuration_path}, ' \
-               f'archive_url={self.archive_url}, ' \
-               f'timestamp={self.timestamp}, ' \
-               f'notification_settings={self.notification_settings}, ' \
-               f'notified={self.notified})'
-
-    def save(self):
-        request_info_path = self.output_dir / 'request.json'
-        request_info_path.write_text(self.json(exclude={'event_log': True}))
-
-    @staticmethod
-    def empty(storage_path: Path) -> 'JobRequest':
-        request_id = str(uuid.uuid4())
-
-        output_dir = storage_path / 'requests' / request_id
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        return JobRequest(
-            id=request_id,
-            output_dir=output_dir.absolute(),
-            status=RequestStatus.UNKNOWN,
-            configuration_path=None,
-            callback_endpoint=None,
-            archive_url=None,
-            timestamp=pd.Timestamp.now(),
         )
 
 
@@ -144,14 +80,29 @@ class Application(BaseSettings):
 
     broker_client: Union[BrokerClient, None] = None
 
+    # Repositories settings
+    mongo_url: str = 'mongodb://localhost:27017/'
+    mongo_database: str = 'simod'
+    mongo_requests_collection: str = 'requests'
+    mongo_username: str = 'root'
+    mongo_password: str = 'example'
+
+    mongo_client: Union[MongoClient, None] = None
+    files_repository: Union[FilesRepositoryInterface, None] = None
+    job_requests_repository: Union[JobRequestsRepositoryInterface, None] = None
+
+    # Derived storage paths
+    files_storage_path = Path(simod_http_storage_path) / 'files'
+    requests_storage_path = Path(simod_http_storage_path) / 'requests'
+
     class Config:
         env_file = '.env'
 
     def __init__(self, **data):
         super().__init__(**data)
 
-        storage_path = Path(self.simod_http_storage_path)
-        storage_path.mkdir(parents=True, exist_ok=True)
+        self.files_storage_path.mkdir(parents=True, exist_ok=True)
+        self.requests_storage_path.mkdir(parents=True, exist_ok=True)
 
         logging.basicConfig(
             level=self.simod_http_log_level.upper(),
@@ -172,45 +123,38 @@ class Application(BaseSettings):
 
         app.simod_http_storage_path = Path(app.simod_http_storage_path)
 
-        client = make_broker_client(app.broker_url, app.simod_exchange_name, app.simod_pending_routing_key)
-        app.broker_client = client
+        broker_client = make_broker_client(app.broker_url, app.simod_exchange_name, app.simod_pending_routing_key)
+        app.broker_client = broker_client
         app.logger.info(f'Broker client initialized: {app.broker_client}')
+
+        mongo_client = MongoClient(
+            app.mongo_url,
+            username=app.mongo_username,
+            password=app.mongo_password,
+        )
+        app.mongo_client = mongo_client
+
+        files_repository = FileSystemFilesRepository(
+            files_storage_path=app.files_storage_path,
+        )
+        app.files_repository = files_repository
+
+        job_requests_repository = make_mongo_job_requests_repository(
+            mongo_client=mongo_client,
+            database=app.mongo_database,
+            collection=app.mongo_requests_collection,
+        )
+        app.job_requests_repository = job_requests_repository
 
         return app
 
     def load_request(self, request_id: str) -> JobRequest:
-        request_dir = Path(self.simod_http_storage_path) / 'requests' / request_id
-        if not request_dir.exists():
-            raise NotFound(
-                request_id=request_id,
-                request_status=RequestStatus.UNKNOWN,
-                archive_url=None,
-                message='Request not found',
-            )
+        result = self.job_requests_repository.get(request_id)
 
-        request_info_path = request_dir / 'request.json'
-        request = JobRequest.parse_raw(request_info_path.read_text())
-        return request
+        if result is None:
+            raise NotFound(message=f'Request {request_id} not found')
 
-    def new_request_from_params(self, callback_url: Optional[str] = None, email: Optional[str] = None) -> 'JobRequest':
-        request = JobRequest.empty(Path(self.simod_http_storage_path))
-
-        if callback_url is not None:
-            notification_settings = NotificationSettings(
-                method=NotificationMethod.HTTP,
-                callback_url=callback_url,
-            )
-        elif email is not None:
-            notification_settings = NotificationSettings(
-                method=NotificationMethod.EMAIL,
-                email=email,
-            )
-        else:
-            notification_settings = None
-
-        request.notification_settings = notification_settings
-
-        return request
+        return result
 
     def make_results_url_for(self, request: JobRequest) -> Union[str, None]:
         if request.status == RequestStatus.SUCCEEDED:
@@ -220,8 +164,8 @@ class Application(BaseSettings):
                 port = f':{self.simod_http_port}'
             return f'{self.simod_http_scheme}://{self.simod_http_host}{port}' \
                    f'/discoveries' \
-                   f'/{request.id}' \
-                   f'/{request.id}.tar.gz'
+                   f'/{request.get_id()}' \
+                   f'/{request.get_id()}.tar.gz'
         return None
 
     def publish_request(self, request: JobRequest):
@@ -229,7 +173,7 @@ class Application(BaseSettings):
             logging.error('Broker client is not initialized')
             raise InternalServerError(message='Broker client is not initialized')
 
-        self.broker_client.publish_request(request.id)
+        self.broker_client.basic_publish_request(request.get_id())
 
 
 class BaseRequestException(Exception):

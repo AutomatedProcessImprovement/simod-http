@@ -1,22 +1,22 @@
 import logging
+import logging
 import re
 import shutil
 from pathlib import Path
 from typing import Union, Optional
 
-import pandas as pd
 from fastapi import Response, Form
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from fastapi_utils.tasks import repeat_every
 from starlette.background import BackgroundTasks
 from starlette.datastructures import UploadFile
 from starlette.exceptions import HTTPException
 from uvicorn.config import LOGGING_CONFIG
 
-from simod_http.app import Response, BadMultipartRequest, InternalServerError, make_app
-from simod_http.app import Response as AppResponse, RequestStatus, NotFound, UnsupportedMediaType, NotSupported, \
-    JobRequest, PatchJobRequest
+from simod_http.app import Response, BadMultipartRequest, InternalServerError, make_app, Application
+from simod_http.app import Response as AppResponse, NotFound, UnsupportedMediaType, NotSupported, \
+    PatchJobRequest
+from simod_http.requests import JobRequest, RequestStatus, NotificationMethod, NotificationSettings
 
 api = make_app()
 
@@ -46,7 +46,7 @@ async def read_discovery_file(request_id: str, file_name: str):
             message=f'Failed to load request {request_id}: {e}',
         )
 
-    file_path = request.output_dir / file_name
+    file_path = Path(request.output_dir) / file_name
     if not file_path.exists():
         raise NotFound(
             request_id=request_id,
@@ -160,57 +160,123 @@ async def create_discovery(
     """
     global api
 
-    app = api.state.app
-
-    request = app.new_request_from_params(callback_url, email)
+    app: Application = api.state.app
 
     if email is not None:
-        request.status = RequestStatus.FAILED
-        request.save()
+        raise NotSupported(message='Email notifications are not supported')
 
-        raise NotSupported(
-            request_id=request.id,
-            request_status=request.status,
-            message='Email notifications are not supported',
-        )
+    notification_settings = _notification_settings_from_params(callback_url, email)
+    event_log_path = _save_uploaded_event_log(event_log)
+    configuration_path = _update_and_save_configuration(configuration, event_log_path)
 
-    request.status = RequestStatus.ACCEPTED
-    request.save()
+    request = JobRequest(
+        notification_settings=notification_settings,
+        configuration_path=str(configuration_path),
+        status=RequestStatus.ACCEPTED,
+        output_dir=None,
+    )
 
-    app.logger.info(f'New request {request.id}: status={request.status}')
+    request = app.job_requests_repository.create(request, app.requests_storage_path)
+    app.logger.info(f'New request {request.get_id()}: status={request.status}')
 
-    background_tasks.add_task(process_post_request, configuration, event_log, request)
+    background_tasks.add_task(process_post_request, request)
 
-    response = AppResponse(request_id=request.id, request_status=request.status)
+    response = AppResponse(request_id=request.get_id(), request_status=request.status)
     return response.json_response(status_code=202)
 
 
-def process_post_request(configuration: UploadFile, event_log: UploadFile, request: JobRequest):
+def _notification_settings_from_params(
+        callback_url: Optional[str] = None,
+        email: Optional[str] = None,
+) -> Optional[NotificationSettings]:
+    if callback_url is not None:
+        notification_settings = NotificationSettings(
+            method=NotificationMethod.HTTP,
+            callback_url=callback_url,
+        )
+    elif email is not None:
+        notification_settings = NotificationSettings(
+            method=NotificationMethod.EMAIL,
+            email=email,
+        )
+    else:
+        notification_settings = None
+
+    return notification_settings
+
+
+def _save_uploaded_event_log(upload: UploadFile) -> Path:
     global api
 
-    app = api.state.app
+    app: Application = api.state.app
 
-    event_log_path = _save_event_log(event_log, request)
-    configuration_path = _update_config_and_save(configuration, event_log_path, request)
+    event_log_file_extension = _infer_event_log_file_extension_from_header(upload.content_type)
+    if event_log_file_extension is None:
+        raise UnsupportedMediaType(message="Unsupported event log file type")
 
-    app.logger.info(f'Processing request {request.id}: '
+    content = upload.file.read()
+    upload.file.close()
+
+    event_log_file = app.files_repository.create(content, event_log_file_extension)
+    app.logger.info(f'Uploaded event log file: {event_log_file.filename}')
+
+    return app.files_repository.file_path(event_log_file.filename)
+
+
+def _update_and_save_configuration(upload: UploadFile, event_log_path: Path):
+    global api
+
+    app: Application = api.state.app
+
+    content = upload.file.read()
+    upload.file.close()
+
+    regexp = r'log_path: .*\n'
+    replacement = f'log_path: {event_log_path.absolute()}\n'
+    content = re.sub(regexp, replacement, content.decode('utf-8'))
+
+    # test log is not supported in request params
+    regexp = r'test_log_path: .*\n'
+    replacement = 'test_log_path: None\n'
+    content = re.sub(regexp, replacement, content)
+
+    new_file = app.files_repository.create(content.encode('utf-8'), '.yaml')
+    app.logger.info(f'Uploaded configuration file: {new_file.filename}')
+
+    return app.files_repository.file_path(new_file.filename)
+
+
+def process_post_request(request: JobRequest):
+    global api
+
+    app: Application = api.state.app
+
+    app.logger.info(f'Processing request {request.get_id()}: '
                     f'status={request.status}, '
-                    f'configuration_path={configuration_path}, '
-                    f'event_log_path={event_log_path}')
-
-    request.configuration_path = configuration_path.absolute()
+                    f'configuration_path={request.configuration_path}')
 
     try:
         api.state.app.publish_request(request)
         request.status = RequestStatus.PENDING
+        app.job_requests_repository.save(request)
     except Exception as e:
         request.status = RequestStatus.FAILED
+        app.job_requests_repository.save(request)
         app.logger.error(e)
         raise e
-    finally:
-        request.save()
 
-    app.logger.info(f'Processed request {request.id}, {request.status}')
+    app.logger.info(f'Processed request {request.get_id()}, {request.status}')
+
+
+def _save_event_log(event_log: UploadFile, request: JobRequest):
+    event_log_file_extension = _infer_event_log_file_extension_from_header(event_log.content_type)
+    if event_log_file_extension is None:
+        raise UnsupportedMediaType(message="Unsupported event log file type")
+
+    event_log_path = Path(request.output_dir) / f"event_log{event_log_file_extension}"
+    event_log_path.write_bytes(event_log.file.read())
+
+    return event_log_path
 
 
 def _update_config_and_save(configuration: UploadFile, event_log_path: Path, request: JobRequest):
@@ -227,26 +293,10 @@ def _update_config_and_save(configuration: UploadFile, event_log_path: Path, req
     replacement = 'test_log_path: None\n'
     data = re.sub(regexp, replacement, data)
 
-    configuration_path = request.output_dir / 'configuration.yaml'
+    configuration_path = Path(request.output_dir) / 'configuration.yaml'
     configuration_path.write_text(data)
 
     return configuration_path
-
-
-def _save_event_log(event_log, request):
-    event_log_file_extension = _infer_event_log_file_extension_from_header(
-        event_log.content_type
-    )
-    if event_log_file_extension is None:
-        raise UnsupportedMediaType(
-            request_id=request.id,
-            request_status=request.status,
-            archive_url=None,
-            message="Unsupported event log file type",
-        )
-    event_log_path = request.output_dir / f"event_log{event_log_file_extension}"
-    event_log_path.write_bytes(event_log.file.read())
-    return event_log_path
 
 
 def _infer_event_log_file_extension_from_header(content_type: str) -> Union[str, None]:
@@ -305,115 +355,6 @@ async def application_startup():
             level=app.simod_http_log_level.upper(),
             format=app.simod_http_log_format,
         )
-
-
-@api.on_event('shutdown')
-async def application_shutdown():
-    global api
-
-    app = api.state.app
-    requests_dir = Path(app.simod_http_storage_path) / 'requests'
-
-    if not requests_dir.exists():
-        return
-
-    for request_dir in requests_dir.iterdir():
-        app.logger.debug(f'Checking request directory before shutting down: {request_dir}')
-
-        await _remove_empty_or_orphaned_request_dir(request_dir)
-
-        try:
-            request = app.load_request(request_dir.name)
-        except NotFound as e:
-            raise e
-        except Exception as e:
-            app.logger.error(f'Failed to load request: {request_dir.name}, {str(e)}')
-            continue
-
-        # At the end, there are only 'failed' or 'succeeded' requests
-        if request.status not in [RequestStatus.SUCCEEDED, RequestStatus.FAILED]:
-            request.status = RequestStatus.FAILED
-            request.timestamp = pd.Timestamp.now()
-            request.save()
-
-
-@api.on_event('startup')
-@repeat_every(seconds=api.state.app.simod_http_storage_cleaning_timedelta)
-async def clean_up():
-    global api
-
-    app = api.state.app
-    requests_dir = Path(api.state.app.simod_http_storage_path) / 'requests'
-
-    if not requests_dir.exists():
-        return
-
-    current_timestamp = pd.Timestamp.now()
-    expire_after_delta = pd.Timedelta(seconds=app.simod_http_request_expiration_timedelta)
-
-    for request_dir in requests_dir.iterdir():
-        if request_dir.is_dir():
-            app.logger.debug(f'Checking request directory for expired data: {request_dir}')
-
-            await _remove_empty_or_orphaned_request_dir(request_dir)
-
-            try:
-                request = app.load_request(request_dir.name)
-            except NotFound as e:
-                raise e
-            except Exception as e:
-                app.logger.error(f'Failed to load request: {request_dir.name}, {str(e)}')
-                continue
-
-            await _remove_expired_requests(current_timestamp, expire_after_delta, request, request_dir)
-
-            await _remove_not_running_not_timestamped_requests(request, request_dir)
-
-
-async def _remove_not_running_not_timestamped_requests(request: JobRequest, request_dir: Path):
-    global api
-
-    app = api.state.app
-    # Removes requests without timestamp that are not running
-    if request.timestamp is None and request.status not in [RequestStatus.ACCEPTED, RequestStatus.RUNNING]:
-        app.logger.info(f'Removing request folder for {request_dir.name}, no timestamp and not running')
-        shutil.rmtree(request_dir, ignore_errors=True)
-
-
-async def _remove_expired_requests(
-        current_timestamp: pd.Timestamp,
-        expire_after_delta: pd.Timedelta,
-        request: JobRequest,
-        request_dir: Path,
-):
-    global api
-
-    app = api.state.app
-
-    if request.status in [RequestStatus.UNKNOWN, RequestStatus.SUCCEEDED, RequestStatus.FAILED]:
-        expired_at = request.timestamp + expire_after_delta
-        if expired_at <= current_timestamp:
-            app.logger.info(f'Removing request folder for {request_dir.name}, expired at {expired_at}')
-            shutil.rmtree(request_dir, ignore_errors=True)
-
-
-async def _remove_empty_or_orphaned_request_dir(request_dir):
-    global api
-
-    app = api.state.app
-
-    if request_dir.is_file():
-        return
-
-    # Removes empty directories
-    if len(list(request_dir.iterdir())) == 0:
-        app.logger.info(f'Removing empty directory: {request_dir}')
-        shutil.rmtree(request_dir, ignore_errors=True)
-
-    # Removes orphaned request directories
-    if not (request_dir / 'request.json').exists():
-        app.logger.info(f'Removing request folder for {request_dir.name}, no request.json file')
-        shutil.rmtree(request_dir, ignore_errors=True)
 
 
 @api.exception_handler(HTTPException)
