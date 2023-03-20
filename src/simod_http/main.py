@@ -1,5 +1,4 @@
 import logging
-import logging
 import re
 import shutil
 from pathlib import Path
@@ -27,8 +26,13 @@ logging_config['formatters']['access']['fmt'] = api.state.app.simod_http_log_for
     '%(message)s', '%(client_addr)s - "%(request_line)s" %(status_code)s')
 
 
-@api.get('/{any_str}')
+@api.get('/')
 async def root() -> JSONResponse:
+    raise NotFound()
+
+
+@api.get('/{any_str}')
+async def catch_all_route() -> JSONResponse:
     raise NotFound()
 
 
@@ -45,6 +49,13 @@ async def read_discovery_file(request_id: str, file_name: str):
         raise InternalServerError(
             request_id=request_id,
             message=f'Failed to load request {request_id}: {e}',
+        )
+
+    if not request.output_dir:
+        raise InternalServerError(
+            request_id=request_id,
+            request_status=request.status,
+            message=f'Request {request_id} has no output directory',
         )
 
     file_path = Path(request.output_dir) / file_name
@@ -128,23 +139,19 @@ async def patch_discovery(request_id: str, patch_request: PatchJobRequest) -> JS
     """
     Update the status of the request.
     """
+    app = api.state.app
+
     try:
-        request = api.state.app.load_request(request_id)
-    except NotFound as e:
-        raise e
+        app.job_requests_repository.save_status(request_id, patch_request.status)
     except Exception as e:
         raise InternalServerError(
             request_id=request_id,
-            message=f'Failed to load request {request_id}: {e}',
+            message=f'Failed to update request {request_id}: {e}',
         )
-
-    request.status = patch_request.status
-    request.save()
 
     return AppResponse(
         request_id=request_id,
-        request_status=request.status,
-        archive_url=api.state.app.make_results_url_for(request),
+        request_status=patch_request.status,
     ).json_response(status_code=200)
 
 
@@ -325,13 +332,12 @@ async def delete_discovery(request_id: str) -> JSONResponse:
             message=f'Failed to load request {request_id}: {e}',
         )
 
-    app.logger.info(f'Deleting request: {request.id}, {request.status}')
-    shutil.rmtree(request.output_dir, ignore_errors=True)
+    request.status = RequestStatus.DELETED
+    app.job_requests_repository.save_status(request_id, request.status)
 
     return AppResponse(
         request_id=request_id,
         request_status=RequestStatus.DELETED,
-        archive_url=None,
     ).json_response(status_code=200)
 
 
@@ -383,7 +389,7 @@ async def validation_exception_handler(_, exc: RequestValidationError) -> JSONRe
     return JSONResponse(
         status_code=422,
         content={
-            'error': {'message': 'Validation error', 'detail': exc.errors()},
+            'error': exc.errors(),
         },
     )
 

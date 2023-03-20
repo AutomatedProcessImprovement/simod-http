@@ -61,6 +61,24 @@ class MongoJobRequestsRepository(JobRequestsRepositoryInterface):
             upsert=True,
         )
 
+    def save_status(self, request_id: str, status: RequestStatus):
+        oid = ObjectId(request_id)
+
+        updated_object = {
+            'status': status.value,
+        }
+
+        if status == RequestStatus.RUNNING:
+            updated_object['started_timestamp'] = datetime.datetime.now()
+        elif status == RequestStatus.FAILED or status == RequestStatus.DELETED or status == RequestStatus.SUCCEEDED:
+            updated_object['finished_timestamp'] = datetime.datetime.now()
+
+        self.collection.update_one(
+            {'_id': oid},
+            {'$set': updated_object},
+            upsert=False,
+        )
+
     def delete(self, request_id: str):
         oid = ObjectId(request_id)
 

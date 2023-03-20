@@ -18,6 +18,11 @@ class JobRequestsRepositoryInterface(metaclass=ABCMeta):
     def save(self, request: JobRequest):
         pass
 
+
+    @abstractmethod
+    def save_status(self, request_id: str, status: str):
+        pass
+
     @abstractmethod
     def delete(self, request_id: str):
         pass
