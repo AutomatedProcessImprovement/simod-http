@@ -1,50 +1,25 @@
 import logging
 import os
 from pathlib import Path
-from typing import Union, Any
+from typing import Union
 
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, BaseSettings
 from pymongo import MongoClient
-from starlette.exceptions import HTTPException
 
 from simod_http.broker_client import BrokerClient, make_broker_client
+from simod_http.exceptions import NotFound, InternalServerError
 from simod_http.files_repository import FilesRepositoryInterface
 from simod_http.files_repository_fs import FileSystemFilesRepository
 from simod_http.requests import RequestStatus, JobRequest
 from simod_http.requests_repository import JobRequestsRepositoryInterface
-from simod_http.requests_repository_mongo import MongoJobRequestsRepository, make_mongo_job_requests_repository
+from simod_http.requests_repository_mongo import make_mongo_job_requests_repository
 
 
 def make_app() -> FastAPI:
     api = FastAPI()
     api.state.app = Application.init()
     return api
-
-
-class Error(BaseModel):
-    message: str
-    detail: Union[Any, None] = None
-
-
-class Response(BaseModel):
-    request_id: Union[str, None]
-    request_status: Union[RequestStatus, None]
-    error: Union[Error, None]
-    archive_url: Union[str, None]
-
-    def json_response(self, status_code: int) -> JSONResponse:
-        return JSONResponse(
-            status_code=status_code,
-            content=self.dict(exclude_none=True),
-        )
-
-    @staticmethod
-    def from_http_exception(exc: HTTPException) -> 'Response':
-        return Response(
-            error=Error(message=exc.detail),
-        )
 
 
 class PatchJobRequest(BaseModel):
@@ -152,7 +127,7 @@ class Application(BaseSettings):
         result = self.job_requests_repository.get(request_id)
 
         if result is None:
-            raise NotFound(message=f'Request {request_id} not found')
+            raise NotFound(message='Request not found', request_id=request_id)
 
         return result
 
@@ -176,69 +151,3 @@ class Application(BaseSettings):
         self.broker_client.basic_publish_request(request.get_id())
 
 
-class BaseRequestException(Exception):
-    _status_code = 500
-
-    request_id = None
-    request_status = None
-    archive_url = None
-    message = 'Internal server error'
-
-    def __init__(
-            self,
-            request_id: Union[str, None] = None,
-            message: Union[str, None] = None,
-            request_status: Union[RequestStatus, None] = None,
-            archive_url: Union[str, None] = None,
-    ):
-        if request_id is not None:
-            self.request_id = request_id
-        if message is not None:
-            self.message = message
-        if request_status is not None:
-            self.request_status = request_status
-        if archive_url is not None:
-            self.archive_url = archive_url
-
-    @property
-    def status_code(self) -> int:
-        return self._status_code
-
-    def make_response(self) -> Response:
-        return Response(
-            request_id=self.request_id,
-            request_status=self.request_status,
-            archive_url=self.archive_url,
-            error=Error(message=self.message),
-        )
-
-    def json_response(self) -> JSONResponse:
-        return JSONResponse(
-            status_code=self.status_code,
-            content=self.make_response().dict(exclude_none=True),
-        )
-
-
-class NotFound(BaseRequestException):
-    _status_code = 404
-    message = 'Not Found'
-
-
-class BadMultipartRequest(BaseRequestException):
-    _status_code = 400
-    message = 'Bad Multipart Request'
-
-
-class UnsupportedMediaType(BaseRequestException):
-    _status_code = 415
-    message = 'Unsupported Media Type'
-
-
-class InternalServerError(BaseRequestException):
-    _status_code = 500
-    message = 'Internal Server Error'
-
-
-class NotSupported(BaseRequestException):
-    _status_code = 501
-    message = 'Not Supported'
