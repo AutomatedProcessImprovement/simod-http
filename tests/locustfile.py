@@ -1,3 +1,4 @@
+import os
 import random
 from pathlib import Path
 
@@ -6,7 +7,8 @@ from requests_toolbelt import MultipartEncoder
 
 
 class User(HttpUser):
-    endpoint_url = 'http://localhost:8000/discoveries'
+    host = os.environ.get('SIMOD_HTTP_URL', 'http://localhost:8000')
+    endpoint_url = f'{host}/discoveries'
     assets_dir = Path('./assets')
 
     def wait_time(self):
