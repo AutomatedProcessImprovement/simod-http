@@ -62,7 +62,6 @@ class Application(BaseSettings):
     mongo_username: str = 'root'
     mongo_password: str = 'example'
 
-    mongo_client: Union[MongoClient, None] = None
     files_repository: Union[FilesRepositoryInterface, None] = None
     job_requests_repository: Union[JobRequestsRepositoryInterface, None] = None
 
@@ -107,7 +106,6 @@ class Application(BaseSettings):
             username=app.mongo_username,
             password=app.mongo_password,
         )
-        app.mongo_client = mongo_client
 
         files_repository = FileSystemFilesRepository(
             files_storage_path=app.files_storage_path,

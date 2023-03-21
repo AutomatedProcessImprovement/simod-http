@@ -39,25 +39,5 @@ class FilesRepositoryInterface(metaclass=ABCMeta):
         pass
 
 
-class FilesRepository:
-    def __init__(self, repository_store: FilesRepositoryInterface):
-        self.repository_store = repository_store
-
-    def create(self, content: bytes, suffix: str) -> File:
-        return self.repository_store.create(content, suffix)
-
-    def get_by_id(self, file_id: str) -> File:
-        return self.repository_store.get_by_id(file_id)
-
-    def get_by_sha256(self, sha256: str) -> File:
-        return self.repository_store.get_by_sha256(sha256)
-
-    def does_exist(self, sha256: str) -> bool:
-        return self.repository_store.does_exist(sha256)
-
-    def delete(self, file_id: str):
-        self.repository_store.delete(file_id)
-
-
 def compute_sha256(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
