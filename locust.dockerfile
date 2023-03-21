@@ -1,15 +1,14 @@
-FROM python:3.9-bullseye
+FROM locustio/locust:2.15.1
 
-RUN pip install --upgrade pip poetry
+ADD tests/assets /home/locust/assets
+ADD tests/locustfile.py /home/locust/locustfile.py
+ADD tests/run.sh /home/locust/run.sh
 
-WORKDIR /usr/src/simod-http
-ADD . .
-RUN poetry install
-
-WORKDIR /usr/src/simod-http/tests
+WORKDIR /home/locust
 
 ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8089
+EXPOSE 5557
 
-CMD ["poetry", "run", "locust"]
+ENTRYPOINT ["bash", "run.sh"]

@@ -2,12 +2,11 @@ import os
 import random
 from pathlib import Path
 
-from locust import HttpUser, task
-from requests_toolbelt import MultipartEncoder
+from locust import task, FastHttpUser
 
 
-class User(HttpUser):
-    host = os.environ.get('SIMOD_HTTP_URL', 'http://localhost:8000')
+class User(FastHttpUser):
+    host = os.environ.get('SIMOD_HTTP_URL')
     endpoint_url = f'{host}/discoveries'
     assets_dir = Path('./assets')
 
@@ -58,15 +57,15 @@ class User(HttpUser):
         configuration_path = self.assets_dir / 'sample.yaml'
         event_log_path = self.assets_dir / 'PurchasingExample.xes'
 
-        data = MultipartEncoder(
-            fields={
-                'configuration': ('configuration.yaml', configuration_path.open('rb'), 'text/yaml'),
-                'event_log': ('event_log.xes', event_log_path.open('rb'), 'application/xml'),
-            }
-        )
+        data = {
+            'configuration': ('configuration.yaml', configuration_path.open('rb'), 'text/yaml'),
+            'event_log': ('event_log.xes', event_log_path.open('rb'), 'application/xml'),
+        }
+
+        content_type = 'multipart/form-data'
 
         self.client.post(
             self.endpoint_url,
-            headers={"Content-Type": data.content_type},
-            data=data,
+            headers={'Content-Type': content_type},
+            files=data,
         )
