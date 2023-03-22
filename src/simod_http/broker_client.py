@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import time
@@ -6,6 +7,8 @@ from typing import Union
 import pika
 import pika.exceptions
 from pika.spec import PERSISTENT_DELIVERY_MODE
+
+from simod_http.requests import JobRequest
 
 
 class BrokerClient:
@@ -91,17 +94,26 @@ class BrokerClient:
                           f'because of an unknown error: {e}')
             self.basic_publish_request(request_id)
 
-    def basic_publish_request(self, request_id: str):
+    def basic_publish_request(self, request: JobRequest):
         parameters = pika.URLParameters(self._broker_url)
         connection = pika.BlockingConnection(parameters)
         channel = connection.channel()
         channel.exchange_declare(exchange=self._exchange_name, exchange_type='topic', durable=True)
+
+        request_id = request.get_id()
+
+        body = json.dumps({
+            'request_id': request_id,
+            'configuration_path': request.configuration_path,
+        })
+
         channel.basic_publish(
             exchange=self._exchange_name,
             routing_key=self._routing_key,
-            body=request_id.encode(),
+            body=body.encode(),
             properties=pika.BasicProperties(
                 delivery_mode=PERSISTENT_DELIVERY_MODE,
+                content_type='application/json',
             ),
         )
         connection.close()

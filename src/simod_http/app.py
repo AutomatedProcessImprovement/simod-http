@@ -148,6 +148,6 @@ class Application(BaseSettings):
             logging.error('Broker client is not initialized')
             raise InternalServerError(message='Broker client is not initialized')
 
-        self.broker_client.basic_publish_request(request.get_id())
+        self.broker_client.basic_publish_request(request)
 
 
