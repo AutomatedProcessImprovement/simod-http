@@ -39,7 +39,7 @@ class Application(BaseSettings):
     simod_http_scheme: str = 'http'
 
     # Path on the file system to store results until the user fetches them, or they expire.
-    simod_http_storage_path: str = '/tmp/simod'
+    simod_http_storage_path: Union[str, None] = None
     simod_http_request_expiration_timedelta: int = 60 * 60 * 24 * 7  # 7 days
     simod_http_storage_cleaning_timedelta: int = 60
 
@@ -66,17 +66,14 @@ class Application(BaseSettings):
     job_requests_repository: Union[JobRequestsRepositoryInterface, None] = None
 
     # Derived storage paths
-    files_storage_path = Path(simod_http_storage_path) / 'files'
-    requests_storage_path = Path(simod_http_storage_path) / 'requests'
+    files_storage_path: Union[Path, None] = None
+    requests_storage_path: Union[Path, None] = None
 
     class Config:
         env_file = '.env'
 
     def __init__(self, **data):
         super().__init__(**data)
-
-        self.files_storage_path.mkdir(parents=True, exist_ok=True)
-        self.requests_storage_path.mkdir(parents=True, exist_ok=True)
 
         logging.basicConfig(
             level=self.simod_http_log_level.upper(),
@@ -95,7 +92,12 @@ class Application(BaseSettings):
         else:
             app = Application(_env_file='.env.production')
 
-        app.simod_http_storage_path = Path(app.simod_http_storage_path)
+        app.simod_http_storage_path = os.environ.get('SIMOD_HTTP_STORAGE_PATH', './data')
+
+        app.files_storage_path = Path(app.simod_http_storage_path) / 'files'
+        app.requests_storage_path = Path(app.simod_http_storage_path) / 'requests'
+        app.files_storage_path.mkdir(parents=True, exist_ok=True)
+        app.requests_storage_path.mkdir(parents=True, exist_ok=True)
 
         broker_client = make_broker_client(app.broker_url, app.simod_exchange_name, app.simod_pending_routing_key)
         app.broker_client = broker_client

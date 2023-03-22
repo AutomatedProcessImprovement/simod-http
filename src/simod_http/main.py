@@ -1,6 +1,5 @@
 import logging
 import re
-import shutil
 from pathlib import Path
 from typing import Union, Optional
 
@@ -16,7 +15,7 @@ from simod_http.app import PatchJobRequest
 from simod_http.app import make_app, Application
 from simod_http.exceptions import NotFound, BadMultipartRequest, UnsupportedMediaType, InternalServerError, NotSupported
 from simod_http.requests import JobRequest, RequestStatus, NotificationMethod, NotificationSettings
-from simod_http.responses import Response, Response as AppResponse
+from simod_http.responses import Response as AppResponse
 
 api = make_app()
 
@@ -88,6 +87,8 @@ def _infer_media_type_from_extension(file_name) -> str:
         media_type = 'application/xml'
     elif file_name.endswith('.json'):
         media_type = 'application/json'
+    elif file_name.endswith('.yaml') or file_name.endswith('.yml'):
+        media_type = 'text/yaml'
     elif file_name.endswith('.png'):
         media_type = 'image/png'
     elif file_name.endswith('.jpg') or file_name.endswith('.jpeg'):
@@ -110,6 +111,47 @@ def _infer_media_type_from_extension(file_name) -> str:
         media_type = 'application/octet-stream'
 
     return media_type
+
+
+@api.get("/discoveries/{request_id}/configuration")
+async def read_discovery_configuration(request_id: str) -> Response:
+    """
+    Get the configuration of the request.
+    """
+    try:
+        request = api.state.app.load_request(request_id)
+    except NotFound as e:
+        raise e
+    except Exception as e:
+        raise InternalServerError(
+            request_id=request_id,
+            message=f'Failed to load request {request_id}: {e}',
+        )
+
+    if not request.configuration_path:
+        raise InternalServerError(
+            request_id=request_id,
+            request_status=request.status,
+            message=f'Request {request_id} has no configuration file',
+        )
+
+    file_path = Path(request.configuration_path)
+    if not file_path.exists():
+        raise NotFound(
+            request_id=request_id,
+            request_status=request.status,
+            message=f"File not found: {file_path}",
+        )
+
+    media_type = _infer_media_type_from_extension(file_path.name)
+
+    return Response(
+        content=file_path.read_bytes(),
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{file_path.name}"',
+        },
+    )
 
 
 @api.get("/discoveries/{request_id}")

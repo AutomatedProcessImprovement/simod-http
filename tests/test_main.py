@@ -69,7 +69,7 @@ class TestAPI:
             'error': 'Not Found',
         }
 
-    def test_discoveries(self):
+    def test_discoveries_get(self):
         client = self.make_failing_client()
 
         response = client.get('/discoveries/123')
@@ -165,7 +165,8 @@ class TestAPI:
 
         return TestClient(api)
 
-    def post_discovery(self, client: TestClient) -> Response:
+    @staticmethod
+    def post_discovery(client: TestClient) -> Response:
         assets_dir = path_to_current_file_dir() / 'assets'
         configuration_path = assets_dir / 'sample.yaml'
         event_log_path = assets_dir / 'PurchasingExample.xes'
