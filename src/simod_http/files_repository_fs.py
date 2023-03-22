@@ -18,7 +18,7 @@ class FileSystemFilesRepository(FilesRepositoryInterface):
         file_name = f'{file_hash}{suffix}'
 
         new_file = File(
-            filename=file_name,
+            file_name=file_name,
             content=content,
             sha256=file_hash,
             _id=file_hash,
@@ -37,7 +37,7 @@ class FileSystemFilesRepository(FilesRepositoryInterface):
         for file in self.files_storage_path.iterdir():
             if file.stem == sha256:
                 return File(
-                    filename=file.name,
+                    file_name=file.name,
                     content=file.read_bytes(),
                     sha256=sha256,
                     _id=sha256,
@@ -51,5 +51,5 @@ class FileSystemFilesRepository(FilesRepositoryInterface):
     def delete(self, file_id: str):
         found_file = self.get_by_id(file_id)
         if found_file is not None:
-            file_path = self.file_path(found_file.filename)
+            file_path = self.file_path(found_file.file_name)
             file_path.unlink()

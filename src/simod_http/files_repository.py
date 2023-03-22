@@ -7,7 +7,7 @@ from typing import Optional
 
 @dataclass
 class File:
-    filename: str
+    file_name: str
     content: bytes
     sha256: str
     _id: Optional[str] = None

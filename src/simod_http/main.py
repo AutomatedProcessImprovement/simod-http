@@ -226,9 +226,10 @@ def _save_uploaded_event_log(upload: UploadFile) -> Path:
     upload.file.close()
 
     event_log_file = app.files_repository.create(content, event_log_file_extension)
-    app.logger.info(f'Uploaded event log file: {event_log_file.filename}')
+    event_log_file_path = app.files_repository.file_path(event_log_file.file_name)
+    app.logger.info(f'Uploaded event log file: {event_log_file_path}')
 
-    return app.files_repository.file_path(event_log_file.filename)
+    return app.files_repository.file_path(event_log_file.file_name)
 
 
 def _update_and_save_configuration(upload: UploadFile, event_log_path: Path):
@@ -249,9 +250,10 @@ def _update_and_save_configuration(upload: UploadFile, event_log_path: Path):
     content = re.sub(regexp, replacement, content)
 
     new_file = app.files_repository.create(content.encode('utf-8'), '.yaml')
-    app.logger.info(f'Uploaded configuration file: {new_file.filename}')
+    new_file_path = app.files_repository.file_path(new_file.file_name)
+    app.logger.info(f'Uploaded configuration file: {new_file_path}')
 
-    return app.files_repository.file_path(new_file.filename)
+    return new_file_path
 
 
 def process_post_request(request: JobRequest):
