@@ -131,16 +131,16 @@ class Application(BaseSettings):
 
         return result
 
-    def make_results_url_for(self, request: JobRequest) -> Union[str, None]:
-        if request.status == RequestStatus.SUCCEEDED:
+    def make_results_url_for(self, request_id: str, status: RequestStatus) -> Union[str, None]:
+        if status == RequestStatus.SUCCEEDED:
             if self.simod_http_port == 80:
                 port = ''
             else:
                 port = f':{self.simod_http_port}'
             return f'{self.simod_http_scheme}://{self.simod_http_host}{port}' \
                    f'/discoveries' \
-                   f'/{request.get_id()}' \
-                   f'/{request.get_id()}.tar.gz'
+                   f'/{request_id}' \
+                   f'/{request_id}.tar.gz'
         return None
 
     def publish_request(self, request: JobRequest):

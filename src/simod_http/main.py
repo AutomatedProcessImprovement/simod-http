@@ -212,7 +212,7 @@ async def patch_discovery(request_id: str, patch_request: PatchJobRequest) -> JS
     try:
         archive_url = None
         if patch_request.status == RequestStatus.SUCCEEDED:
-            archive_url = app.make_results_url_for(request_id)
+            archive_url = app.make_results_url_for(request_id, patch_request.status)
 
         app.job_requests_repository.save_status(request_id, patch_request.status, archive_url)
     except Exception as e:
