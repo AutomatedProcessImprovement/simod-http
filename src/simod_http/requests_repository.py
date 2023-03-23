@@ -1,6 +1,6 @@
 from abc import abstractmethod, ABCMeta
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from simod_http.requests import JobRequest
 
@@ -24,4 +24,12 @@ class JobRequestsRepositoryInterface(metaclass=ABCMeta):
 
     @abstractmethod
     def delete(self, request_id: str):
+        pass
+
+    @abstractmethod
+    def get_all(self) -> List[JobRequest]:
+        pass
+
+    @abstractmethod
+    def delete_all(self):
         pass

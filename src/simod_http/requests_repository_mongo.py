@@ -1,7 +1,7 @@
 import datetime
 import os
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, List
 from unittest.mock import MagicMock
 
 import pymongo
@@ -86,6 +86,14 @@ class MongoJobRequestsRepository(JobRequestsRepositoryInterface):
         oid = ObjectId(request_id)
 
         self.collection.delete_one({'_id': oid})
+
+    def get_all(self) -> List[JobRequest]:
+        result = self.collection.find({})
+        return [JobRequest(**r) for r in result]
+
+    def delete_all(self) -> int:
+        result = self.collection.delete_many({})
+        return result.deleted_count
 
 
 def make_mongo_job_requests_repository(

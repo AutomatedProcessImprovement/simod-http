@@ -1,7 +1,8 @@
 import logging
 import re
+import shutil
 from pathlib import Path
-from typing import Union, Optional
+from typing import Union, Optional, List
 
 from fastapi import Response, Form
 from fastapi.exceptions import RequestValidationError
@@ -25,6 +26,8 @@ logging_config['formatters']['access']['fmt'] = api.state.app.simod_http_log_for
     '%(message)s', '%(client_addr)s - "%(request_line)s" %(status_code)s')
 
 
+# Routes: /
+
 @api.get('/')
 async def root() -> JSONResponse:
     raise NotFound()
@@ -33,6 +36,111 @@ async def root() -> JSONResponse:
 @api.get('/{any_str}')
 async def catch_all_route() -> JSONResponse:
     raise NotFound()
+
+
+# Routes: /discoveries
+
+@api.post("/discoveries")
+async def create_discovery(
+        background_tasks: BackgroundTasks,
+        configuration=Form(),
+        event_log=Form(),
+        callback_url: Optional[str] = None,
+        email: Optional[str] = None,
+) -> JSONResponse:
+    """
+    Create a new business process simulation model discovery request.
+    """
+    global api
+
+    app: Application = api.state.app
+
+    if email is not None:
+        raise NotSupported(message='Email notifications are not supported')
+
+    notification_settings = _notification_settings_from_params(callback_url, email)
+    event_log_path = _save_uploaded_event_log(event_log)
+    configuration_path = _update_and_save_configuration(configuration, event_log_path)
+
+    request = JobRequest(
+        notification_settings=notification_settings,
+        configuration_path=str(configuration_path),
+        status=RequestStatus.ACCEPTED,
+        output_dir=None,
+    )
+
+    request = app.job_requests_repository.create(request, app.requests_storage_path)
+    app.logger.info(f'New request {request.get_id()}: status={request.status}')
+
+    background_tasks.add_task(_process_post_request, request)
+
+    response = AppResponse(request_id=request.get_id(), request_status=request.status)
+    return response.json_response(status_code=202)
+
+
+@api.delete("/discoveries")
+async def delete_discoveries() -> JSONResponse:
+    """
+    Delete all business process simulation model discovery requests.
+    """
+    app = api.state.app
+
+    requests = app.job_requests_repository.get_all()
+
+    try:
+        _remove_fs_directories(requests)
+    except Exception as e:
+        raise InternalServerError(
+            request_id=None,
+            message=f'Failed to remove directories of requests: {e}'
+        )
+
+    deleted_amount = app.job_requests_repository.delete_all()
+
+    return JSONResponse(status_code=200, content={'deleted_amount': deleted_amount})
+
+
+# Routes: /discoveries/{request_id}
+
+@api.get("/discoveries/{request_id}/configuration")
+async def read_discovery_configuration(request_id: str) -> Response:
+    """
+    Get the configuration of the request.
+    """
+    try:
+        request = api.state.app.load_request(request_id)
+    except NotFound as e:
+        raise e
+    except Exception as e:
+        raise InternalServerError(
+            request_id=request_id,
+            message=f'Failed to load request {request_id}: {e}',
+        )
+
+    if not request.configuration_path:
+        raise InternalServerError(
+            request_id=request_id,
+            request_status=request.status,
+            message=f'Request {request_id} has no configuration file',
+        )
+
+    file_path = Path(request.configuration_path)
+    if not file_path.exists():
+        raise NotFound(
+            request_id=request_id,
+            request_status=request.status,
+            message=f"File not found: {file_path}",
+        )
+
+    media_type = _infer_media_type_from_extension(file_path.name)
+
+    return Response(
+        content=file_path.read_bytes(),
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{file_path.name}"',
+        },
+    )
 
 
 @api.get("/discoveries/{request_id}/{file_name}")
@@ -72,84 +180,6 @@ async def read_discovery_file(request_id: str, file_name: str):
         media_type=media_type,
         headers={
             "Content-Disposition": f'attachment; filename="{file_name}"',
-        },
-    )
-
-
-def _infer_media_type_from_extension(file_name) -> str:
-    if file_name.endswith('.csv'):
-        media_type = 'text/csv'
-    elif file_name.endswith('.xml'):
-        media_type = 'application/xml'
-    elif file_name.endswith('.xes'):
-        media_type = 'application/xml'
-    elif file_name.endswith('.bpmn'):
-        media_type = 'application/xml'
-    elif file_name.endswith('.json'):
-        media_type = 'application/json'
-    elif file_name.endswith('.yaml') or file_name.endswith('.yml'):
-        media_type = 'text/yaml'
-    elif file_name.endswith('.png'):
-        media_type = 'image/png'
-    elif file_name.endswith('.jpg') or file_name.endswith('.jpeg'):
-        media_type = 'image/jpeg'
-    elif file_name.endswith('.pdf'):
-        media_type = 'application/pdf'
-    elif file_name.endswith('.txt'):
-        media_type = 'text/plain'
-    elif file_name.endswith('.zip'):
-        media_type = 'application/zip'
-    elif file_name.endswith('.gz'):
-        media_type = 'application/gzip'
-    elif file_name.endswith('.tar'):
-        media_type = 'application/tar'
-    elif file_name.endswith('.tar.gz'):
-        media_type = 'application/tar+gzip'
-    elif file_name.endswith('.tar.bz2'):
-        media_type = 'application/x-bzip2'
-    else:
-        media_type = 'application/octet-stream'
-
-    return media_type
-
-
-@api.get("/discoveries/{request_id}/configuration")
-async def read_discovery_configuration(request_id: str) -> Response:
-    """
-    Get the configuration of the request.
-    """
-    try:
-        request = api.state.app.load_request(request_id)
-    except NotFound as e:
-        raise e
-    except Exception as e:
-        raise InternalServerError(
-            request_id=request_id,
-            message=f'Failed to load request {request_id}: {e}',
-        )
-
-    if not request.configuration_path:
-        raise InternalServerError(
-            request_id=request_id,
-            request_status=request.status,
-            message=f'Request {request_id} has no configuration file',
-        )
-
-    file_path = Path(request.configuration_path)
-    if not file_path.exists():
-        raise NotFound(
-            request_id=request_id,
-            request_status=request.status,
-            message=f"File not found: {file_path}",
-        )
-
-    media_type = _infer_media_type_from_extension(file_path.name)
-
-    return Response(
-        content=file_path.read_bytes(),
-        media_type=media_type,
-        headers={
-            "Content-Disposition": f'attachment; filename="{file_path.name}"',
         },
     )
 
@@ -197,42 +227,66 @@ async def patch_discovery(request_id: str, patch_request: PatchJobRequest) -> JS
     ).json_response(status_code=200)
 
 
-@api.post("/discoveries")
-async def create_discovery(
-        background_tasks: BackgroundTasks,
-        configuration=Form(),
-        event_log=Form(),
-        callback_url: Optional[str] = None,
-        email: Optional[str] = None,
-) -> JSONResponse:
-    """
-    Create a new business process simulation model discovery request.
-    """
+@api.delete("/discoveries/{request_id}")
+async def delete_discovery(request_id: str) -> JSONResponse:
     global api
 
-    app: Application = api.state.app
+    app = api.state.app
 
-    if email is not None:
-        raise NotSupported(message='Email notifications are not supported')
+    try:
+        request = app.load_request(request_id)
+    except NotFound as e:
+        raise e
+    except Exception as e:
+        raise InternalServerError(
+            request_id=request_id,
+            message=f'Failed to load request {request_id}: {e}',
+        )
 
-    notification_settings = _notification_settings_from_params(callback_url, email)
-    event_log_path = _save_uploaded_event_log(event_log)
-    configuration_path = _update_and_save_configuration(configuration, event_log_path)
+    request.status = RequestStatus.DELETED
+    app.job_requests_repository.save_status(request_id, request.status)
 
-    request = JobRequest(
-        notification_settings=notification_settings,
-        configuration_path=str(configuration_path),
-        status=RequestStatus.ACCEPTED,
-        output_dir=None,
-    )
+    return AppResponse(
+        request_id=request_id,
+        request_status=RequestStatus.DELETED,
+    ).json_response(status_code=200)
 
-    request = app.job_requests_repository.create(request, app.requests_storage_path)
-    app.logger.info(f'New request {request.get_id()}: status={request.status}')
 
-    background_tasks.add_task(process_post_request, request)
+def _infer_media_type_from_extension(file_name) -> str:
+    if file_name.endswith('.csv'):
+        media_type = 'text/csv'
+    elif file_name.endswith('.xml'):
+        media_type = 'application/xml'
+    elif file_name.endswith('.xes'):
+        media_type = 'application/xml'
+    elif file_name.endswith('.bpmn'):
+        media_type = 'application/xml'
+    elif file_name.endswith('.json'):
+        media_type = 'application/json'
+    elif file_name.endswith('.yaml') or file_name.endswith('.yml'):
+        media_type = 'text/yaml'
+    elif file_name.endswith('.png'):
+        media_type = 'image/png'
+    elif file_name.endswith('.jpg') or file_name.endswith('.jpeg'):
+        media_type = 'image/jpeg'
+    elif file_name.endswith('.pdf'):
+        media_type = 'application/pdf'
+    elif file_name.endswith('.txt'):
+        media_type = 'text/plain'
+    elif file_name.endswith('.zip'):
+        media_type = 'application/zip'
+    elif file_name.endswith('.gz'):
+        media_type = 'application/gzip'
+    elif file_name.endswith('.tar'):
+        media_type = 'application/tar'
+    elif file_name.endswith('.tar.gz'):
+        media_type = 'application/tar+gzip'
+    elif file_name.endswith('.tar.bz2'):
+        media_type = 'application/x-bzip2'
+    else:
+        media_type = 'application/octet-stream'
 
-    response = AppResponse(request_id=request.get_id(), request_status=request.status)
-    return response.json_response(status_code=202)
+    return media_type
 
 
 def _notification_settings_from_params(
@@ -298,7 +352,7 @@ def _update_and_save_configuration(upload: UploadFile, event_log_path: Path):
     return new_file_path
 
 
-def process_post_request(request: JobRequest):
+def _process_post_request(request: JobRequest):
     global api
 
     app: Application = api.state.app
@@ -360,29 +414,12 @@ def _infer_event_log_file_extension_from_header(content_type: str) -> Union[str,
         return None
 
 
-@api.delete("/discoveries/{request_id}")
-async def delete_discovery(request_id: str) -> JSONResponse:
-    global api
-
-    app = api.state.app
-
-    try:
-        request = app.load_request(request_id)
-    except NotFound as e:
-        raise e
-    except Exception as e:
-        raise InternalServerError(
-            request_id=request_id,
-            message=f'Failed to load request {request_id}: {e}',
-        )
-
-    request.status = RequestStatus.DELETED
-    app.job_requests_repository.save_status(request_id, request.status)
-
-    return AppResponse(
-        request_id=request_id,
-        request_status=RequestStatus.DELETED,
-    ).json_response(status_code=200)
+def _remove_fs_directories(requests: List[JobRequest]):
+    for request in requests:
+        if request.output_dir:
+            output_dir = Path(request.output_dir)
+            if output_dir.exists():
+                shutil.rmtree(output_dir)
 
 
 @api.on_event('startup')
