@@ -61,7 +61,7 @@ class MongoJobRequestsRepository(JobRequestsRepositoryInterface):
             upsert=True,
         )
 
-    def save_status(self, request_id: str, status: RequestStatus):
+    def save_status(self, request_id: str, status: RequestStatus, archive_url: Optional[str] = None):
         oid = ObjectId(request_id)
 
         updated_object = {
@@ -72,6 +72,9 @@ class MongoJobRequestsRepository(JobRequestsRepositoryInterface):
             updated_object['started_timestamp'] = datetime.datetime.now()
         elif status == RequestStatus.FAILED or status == RequestStatus.DELETED or status == RequestStatus.SUCCEEDED:
             updated_object['finished_timestamp'] = datetime.datetime.now()
+
+        if status == RequestStatus.SUCCEEDED and archive_url is not None:
+            updated_object['archive_url'] = archive_url
 
         self.collection.update_one(
             {'_id': oid},

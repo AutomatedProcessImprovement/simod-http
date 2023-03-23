@@ -155,7 +155,7 @@ async def read_discovery_configuration(request_id: str) -> Response:
 
 
 @api.get("/discoveries/{request_id}")
-async def read_discovery(request_id: str) -> JSONResponse:
+async def read_discovery(request_id: str) -> JobRequest:
     """
     Get the status of the request.
     """
@@ -169,11 +169,7 @@ async def read_discovery(request_id: str) -> JSONResponse:
             message=f'Failed to load request {request_id}: {e}',
         )
 
-    return AppResponse(
-        request_id=request_id,
-        request_status=request.status,
-        archive_url=api.state.app.make_results_url_for(request),
-    ).json_response(status_code=200)
+    return request
 
 
 @api.patch("/discoveries/{request_id}")
@@ -184,7 +180,11 @@ async def patch_discovery(request_id: str, patch_request: PatchJobRequest) -> JS
     app = api.state.app
 
     try:
-        app.job_requests_repository.save_status(request_id, patch_request.status)
+        archive_url = None
+        if patch_request.status == RequestStatus.SUCCEEDED:
+            archive_url = app.make_results_url_for(request_id)
+
+        app.job_requests_repository.save_status(request_id, patch_request.status, archive_url)
     except Exception as e:
         raise InternalServerError(
             request_id=request_id,

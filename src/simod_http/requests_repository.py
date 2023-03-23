@@ -19,7 +19,7 @@ class JobRequestsRepositoryInterface(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def save_status(self, request_id: str, status: str):
+    def save_status(self, request_id: str, status: str, archive_url: Optional[str] = None):
         pass
 
     @abstractmethod
