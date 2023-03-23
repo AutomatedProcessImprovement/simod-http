@@ -33,11 +33,6 @@ async def root() -> JSONResponse:
     raise NotFound()
 
 
-@api.get('/{any_str}')
-async def catch_all_route() -> JSONResponse:
-    raise NotFound()
-
-
 # Routes: /discoveries
 
 @api.post("/discoveries")
@@ -76,6 +71,18 @@ async def create_discovery(
 
     response = AppResponse(request_id=request.get_id(), request_status=request.status)
     return response.json_response(status_code=202)
+
+
+@api.get("/discoveries")
+async def read_discoveries() -> JSONResponse:
+    """
+    Get all business process simulation model discovery requests.
+    """
+    app = api.state.app
+
+    requests = app.job_requests_repository.get_all()
+
+    return JSONResponse(status_code=200, content={'requests': requests})
 
 
 @api.delete("/discoveries")
