@@ -462,7 +462,7 @@ async def request_exception_handler(_, exc: HTTPException) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,
         content={
-            'error': {'message': exc.detail},
+            'error': exc.detail,
         },
     )
 
