@@ -34,7 +34,7 @@ services:
     restart: unless-stopped
 
   simod-http:
-    image: nokal/simod-http:0.7.0
+    image: nokal/simod-http:0.10.1
     depends_on:
       - rabbitmq-service
       - mongodb
@@ -49,6 +49,7 @@ services:
       - SIMOD_HTTP_PORT=8000
       - SIMOD_HTTP_STORAGE_PATH=/tmp/simod
       - SIMOD_HTTP_LOG_LEVEL=info
+      - SIMOD_GUNICORN_WORKERS=4
     restart: unless-stopped
 
   rabbitmq-service:

@@ -14,7 +14,9 @@ if [ -n "$REPORT_OUTPUT_DIR" ]; then
     --csv $output_dir/simod-http \
     --logfile $output_dir/locust.log \
     --loglevel INFO \
-    --html $output_dir/report.html
+    --html $output_dir/report.html \
+    --autostart \
+    --autoquit 0 \
     --master
 
 else
