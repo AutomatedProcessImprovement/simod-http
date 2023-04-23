@@ -17,13 +17,13 @@ class MongoJobRequestsRepository(JobRequestsRepositoryInterface):
         self.mongo_client = mongo_client
         self.database = mongo_client[database]
         self.collection = self.database[collection]
+        self._create_indexes()
 
     def _create_indexes(self):
         self.collection.create_index([
             ('status', pymongo.ASCENDING),
             ('created_timestamp', pymongo.ASCENDING),
         ])
-        self.collection.create_index([('_id', pymongo.ASCENDING)], unique=True)
 
     def create(self, request: JobRequest, requests_storage_path: Path) -> JobRequest:
         request.created_timestamp = datetime.datetime.now()
