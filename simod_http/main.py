@@ -209,6 +209,7 @@ async def read_discovery(request_id: str) -> JobRequest:
     return request
 
 
+# TODO: status should updated automatically by the background task
 @api.patch("/discoveries/{request_id}")
 async def patch_discovery(request_id: str, patch_request: PatchJobRequest) -> JSONResponse:
     """

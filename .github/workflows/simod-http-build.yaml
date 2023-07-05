@@ -6,13 +6,13 @@ on:
     branches: [ main ]
     paths:
       - 'Dockerfile'
-      - 'src/simod_http/**'
+      - 'simod_http/**'
       - '.github/workflows/**'
   pull_request:
     branches: [ main ]
     paths:
       - 'Dockerfile'
-      - 'src/simod_http/**'
+      - 'simod_http/**'
       - '.github/workflows/**'
 
 env:
