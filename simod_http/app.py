@@ -12,8 +12,8 @@ from simod_http.exceptions import NotFound, InternalServerError
 from simod_http.files_repository import FilesRepositoryInterface
 from simod_http.files_repository_fs import FileSystemFilesRepository
 from simod_http.discoveries import DiscoveryStatus, DiscoveryRequest
-from simod_http.requests_repository import JobRequestsRepositoryInterface
-from simod_http.requests_repository_mongo import make_mongo_job_requests_repository
+from simod_http.discoveries_repository import DiscoveriesRepositoryInterface
+from simod_http.discoveries_repository_mongo import make_mongo_job_requests_repository
 
 
 def make_app() -> FastAPI:
@@ -63,7 +63,7 @@ class Application(BaseSettings):
     mongo_password: str = 'example'
 
     files_repository: Union[FilesRepositoryInterface, None] = None
-    job_requests_repository: Union[JobRequestsRepositoryInterface, None] = None
+    job_requests_repository: Union[DiscoveriesRepositoryInterface, None] = None
 
     # Derived storage paths
     files_storage_path: Union[Path, None] = None

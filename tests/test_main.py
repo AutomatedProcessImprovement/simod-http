@@ -12,8 +12,8 @@ from simod_http.broker_client import BrokerClient
 from simod_http.exceptions import NotFound
 from simod_http.main import api
 from simod_http.discoveries import DiscoveryStatus, DiscoveryRequest
-from simod_http.requests_repository import JobRequestsRepositoryInterface
-from simod_http.requests_repository_mongo import MongoJobRequestsRepository
+from simod_http.discoveries_repository import DiscoveriesRepositoryInterface
+from simod_http.discoveries_repository_mongo import MongoDiscoveriesRepository
 
 
 def inject_broker_client(api: FastAPI, client: BrokerClient) -> FastAPI:
@@ -32,13 +32,13 @@ def stub_broker_client() -> BrokerClient:
     return client
 
 
-def inject_requests_repository(api: FastAPI, repository: JobRequestsRepositoryInterface) -> FastAPI:
+def inject_requests_repository(api: FastAPI, repository: DiscoveriesRepositoryInterface) -> FastAPI:
     api.state.app.job_requests_repository = repository
     return api
 
 
-def stub_requests_repository_failing() -> MongoJobRequestsRepository:
-    repository = MongoJobRequestsRepository(mongo_client=MagicMock(), database='simod', collection='requests')
+def stub_requests_repository_failing() -> MongoDiscoveriesRepository:
+    repository = MongoDiscoveriesRepository(mongo_client=MagicMock(), database='simod', collection='requests')
     repository.get = MagicMock(side_effect=NotFound(message='Request not found', request_id='123'))
     repository.save = MagicMock()
     return repository
@@ -150,7 +150,7 @@ class TestAPI:
 
     @staticmethod
     def make_client(status: Optional[DiscoveryStatus] = DiscoveryStatus.PENDING) -> TestClient:
-        repository = MongoJobRequestsRepository(mongo_client=MagicMock(), database='simod', collection='requests')
+        repository = MongoDiscoveriesRepository(mongo_client=MagicMock(), database='simod', collection='requests')
         repository.get = MagicMock(return_value=DiscoveryRequest(
             _id='123',
             status=status,

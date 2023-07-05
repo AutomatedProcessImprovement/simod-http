@@ -9,10 +9,10 @@ from bson import ObjectId
 from pymongo import MongoClient
 
 from simod_http.discoveries import DiscoveryRequest, DiscoveryStatus
-from simod_http.requests_repository import JobRequestsRepositoryInterface
+from simod_http.discoveries_repository import DiscoveriesRepositoryInterface
 
 
-class MongoJobRequestsRepository(JobRequestsRepositoryInterface):
+class MongoDiscoveriesRepository(DiscoveriesRepositoryInterface):
     def __init__(self, mongo_client: MongoClient, database: str, collection: str):
         self.mongo_client = mongo_client
         self.database = mongo_client[database]
@@ -100,7 +100,7 @@ def make_mongo_job_requests_repository(
         mongo_client: MongoClient,
         database: str,
         collection: str,
-) -> Union[MongoJobRequestsRepository, MagicMock]:
+) -> Union[MongoDiscoveriesRepository, MagicMock]:
     use_fake = os.environ.get('SIMOD_FAKE_REQUESTS_REPOSITORY', 'false').lower() == 'true'
     if use_fake:
         repository = MagicMock()
@@ -108,7 +108,7 @@ def make_mongo_job_requests_repository(
         repository.get.return_value = DiscoveryRequest(configuration_path='fake', status=DiscoveryStatus.PENDING)
         return repository
     else:
-        return MongoJobRequestsRepository(
+        return MongoDiscoveriesRepository(
             mongo_client=mongo_client,
             database=database,
             collection=collection,

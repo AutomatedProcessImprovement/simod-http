@@ -5,7 +5,7 @@ from typing import Optional, List
 from simod_http.discoveries import DiscoveryRequest
 
 
-class JobRequestsRepositoryInterface(metaclass=ABCMeta):
+class DiscoveriesRepositoryInterface(metaclass=ABCMeta):
     @abstractmethod
     def create(self, request: DiscoveryRequest, requests_storage_path: Path) -> DiscoveryRequest:
         pass
