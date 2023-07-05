@@ -8,7 +8,7 @@ import pymongo
 from bson import ObjectId
 from pymongo import MongoClient
 
-from simod_http.requests import JobRequest, RequestStatus
+from simod_http.discoveries import DiscoveryRequest, DiscoveryStatus
 from simod_http.requests_repository import JobRequestsRepositoryInterface
 
 
@@ -25,7 +25,7 @@ class MongoJobRequestsRepository(JobRequestsRepositoryInterface):
             ('created_timestamp', pymongo.ASCENDING),
         ])
 
-    def create(self, request: JobRequest, requests_storage_path: Path) -> JobRequest:
+    def create(self, request: DiscoveryRequest, requests_storage_path: Path) -> DiscoveryRequest:
         request.created_timestamp = datetime.datetime.now()
 
         result = self.collection.insert_one(request.to_dict())
@@ -38,7 +38,7 @@ class MongoJobRequestsRepository(JobRequestsRepositoryInterface):
 
         return request
 
-    def get(self, request_id: str) -> Optional[JobRequest]:
+    def get(self, request_id: str) -> Optional[DiscoveryRequest]:
         oid = ObjectId(request_id)
 
         result = self.collection.find_one({'_id': oid})
@@ -47,12 +47,12 @@ class MongoJobRequestsRepository(JobRequestsRepositoryInterface):
             return None
 
         # ObjectId to str
-        request = JobRequest(**result)
+        request = DiscoveryRequest(**result)
         request.set_id(str(request_id))
 
         return request
 
-    def save(self, request: JobRequest):
+    def save(self, request: DiscoveryRequest):
         oid = ObjectId(request.get_id())
 
         self.collection.update_one(
@@ -61,19 +61,19 @@ class MongoJobRequestsRepository(JobRequestsRepositoryInterface):
             upsert=True,
         )
 
-    def save_status(self, request_id: str, status: RequestStatus, archive_url: Optional[str] = None):
+    def save_status(self, request_id: str, status: DiscoveryStatus, archive_url: Optional[str] = None):
         oid = ObjectId(request_id)
 
         updated_object = {
             'status': status.value,
         }
 
-        if status == RequestStatus.RUNNING:
+        if status == DiscoveryStatus.RUNNING:
             updated_object['started_timestamp'] = datetime.datetime.now()
-        elif status == RequestStatus.FAILED or status == RequestStatus.DELETED or status == RequestStatus.SUCCEEDED:
+        elif status == DiscoveryStatus.FAILED or status == DiscoveryStatus.DELETED or status == DiscoveryStatus.SUCCEEDED:
             updated_object['finished_timestamp'] = datetime.datetime.now()
 
-        if status == RequestStatus.SUCCEEDED and archive_url is not None:
+        if status == DiscoveryStatus.SUCCEEDED and archive_url is not None:
             updated_object['archive_url'] = archive_url
 
         self.collection.update_one(
@@ -87,9 +87,9 @@ class MongoJobRequestsRepository(JobRequestsRepositoryInterface):
 
         self.collection.delete_one({'_id': oid})
 
-    def get_all(self) -> List[JobRequest]:
+    def get_all(self) -> List[DiscoveryRequest]:
         result = self.collection.find({})
-        return [JobRequest(**r) for r in result]
+        return [DiscoveryRequest(**r) for r in result]
 
     def delete_all(self) -> int:
         result = self.collection.delete_many({})
@@ -104,8 +104,8 @@ def make_mongo_job_requests_repository(
     use_fake = os.environ.get('SIMOD_FAKE_REQUESTS_REPOSITORY', 'false').lower() == 'true'
     if use_fake:
         repository = MagicMock()
-        repository.create.return_value = JobRequest(configuration_path='fake', status=RequestStatus.PENDING)
-        repository.get.return_value = JobRequest(configuration_path='fake', status=RequestStatus.PENDING)
+        repository.create.return_value = DiscoveryRequest(configuration_path='fake', status=DiscoveryStatus.PENDING)
+        repository.get.return_value = DiscoveryRequest(configuration_path='fake', status=DiscoveryStatus.PENDING)
         return repository
     else:
         return MongoJobRequestsRepository(

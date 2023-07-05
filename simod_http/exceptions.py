@@ -2,7 +2,7 @@ from typing import Union
 
 from starlette.responses import JSONResponse
 
-from simod_http.requests import RequestStatus
+from simod_http.discoveries import DiscoveryStatus
 from simod_http.responses import Response
 
 
@@ -18,7 +18,7 @@ class BaseRequestException(Exception):
             self,
             request_id: Union[str, None] = None,
             message: Union[str, None] = None,
-            request_status: Union[RequestStatus, None] = None,
+            request_status: Union[DiscoveryStatus, None] = None,
             archive_url: Union[str, None] = None,
     ):
         if request_id is not None:

@@ -15,7 +15,7 @@ from uvicorn.config import LOGGING_CONFIG
 from simod_http.app import PatchJobRequest
 from simod_http.app import make_app, Application
 from simod_http.exceptions import NotFound, BadMultipartRequest, UnsupportedMediaType, InternalServerError, NotSupported
-from simod_http.requests import JobRequest, RequestStatus, NotificationMethod, NotificationSettings
+from simod_http.discoveries import DiscoveryRequest, DiscoveryStatus, NotificationMethod, NotificationSettings
 from simod_http.responses import Response as AppResponse
 
 api = make_app()
@@ -57,10 +57,10 @@ async def create_discovery(
     event_log_path = _save_uploaded_event_log(event_log)
     configuration_path = _update_and_save_configuration(configuration, event_log_path)
 
-    request = JobRequest(
+    request = DiscoveryRequest(
         notification_settings=notification_settings,
         configuration_path=str(configuration_path),
-        status=RequestStatus.ACCEPTED,
+        status=DiscoveryStatus.ACCEPTED,
         output_dir=None,
     )
 
@@ -192,7 +192,7 @@ async def read_discovery_file(request_id: str, file_name: str):
 
 
 @api.get("/discoveries/{request_id}")
-async def read_discovery(request_id: str) -> JobRequest:
+async def read_discovery(request_id: str) -> DiscoveryRequest:
     """
     Get the status of the request.
     """
@@ -219,7 +219,7 @@ async def patch_discovery(request_id: str, patch_request: PatchJobRequest) -> JS
 
     try:
         archive_url = None
-        if patch_request.status == RequestStatus.SUCCEEDED:
+        if patch_request.status == DiscoveryStatus.SUCCEEDED:
             archive_url = app.make_results_url_for(request_id, patch_request.status)
 
         app.job_requests_repository.save_status(request_id, patch_request.status, archive_url)
@@ -251,12 +251,12 @@ async def delete_discovery(request_id: str) -> JSONResponse:
             message=f'Failed to load request {request_id}: {e}',
         )
 
-    request.status = RequestStatus.DELETED
+    request.status = DiscoveryStatus.DELETED
     app.job_requests_repository.save_status(request_id, request.status)
 
     return AppResponse(
         request_id=request_id,
-        request_status=RequestStatus.DELETED,
+        request_status=DiscoveryStatus.DELETED,
     ).json_response(status_code=200)
 
 
@@ -360,7 +360,7 @@ def _update_and_save_configuration(upload: UploadFile, event_log_path: Path):
     return new_file_path
 
 
-def _process_post_request(request: JobRequest):
+def _process_post_request(request: DiscoveryRequest):
     global api
 
     app: Application = api.state.app
@@ -371,10 +371,10 @@ def _process_post_request(request: JobRequest):
 
     try:
         api.state.app.publish_request(request)
-        request.status = RequestStatus.PENDING
+        request.status = DiscoveryStatus.PENDING
         app.job_requests_repository.save(request)
     except Exception as e:
-        request.status = RequestStatus.FAILED
+        request.status = DiscoveryStatus.FAILED
         app.job_requests_repository.save(request)
         app.logger.error(e)
         raise e
@@ -382,7 +382,7 @@ def _process_post_request(request: JobRequest):
     app.logger.info(f'Processed request {request.get_id()}, {request.status}')
 
 
-def _save_event_log(event_log: UploadFile, request: JobRequest):
+def _save_event_log(event_log: UploadFile, request: DiscoveryRequest):
     event_log_file_extension = _infer_event_log_file_extension_from_header(event_log.content_type)
     if event_log_file_extension is None:
         raise UnsupportedMediaType(message="Unsupported event log file type")
@@ -393,7 +393,7 @@ def _save_event_log(event_log: UploadFile, request: JobRequest):
     return event_log_path
 
 
-def _update_config_and_save(configuration: UploadFile, event_log_path: Path, request: JobRequest):
+def _update_config_and_save(configuration: UploadFile, event_log_path: Path, request: DiscoveryRequest):
     data = configuration.file.read()
     configuration.file.close()
 
@@ -422,7 +422,7 @@ def _infer_event_log_file_extension_from_header(content_type: str) -> Union[str,
         return None
 
 
-def _remove_fs_directories(requests: List[JobRequest]):
+def _remove_fs_directories(requests: List[DiscoveryRequest]):
     for request in requests:
         if request.output_dir:
             output_dir = Path(request.output_dir)

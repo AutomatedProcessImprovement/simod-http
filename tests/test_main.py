@@ -11,7 +11,7 @@ from starlette.testclient import TestClient
 from simod_http.broker_client import BrokerClient
 from simod_http.exceptions import NotFound
 from simod_http.main import api
-from simod_http.requests import RequestStatus, JobRequest
+from simod_http.discoveries import DiscoveryStatus, DiscoveryRequest
 from simod_http.requests_repository import JobRequestsRepositoryInterface
 from simod_http.requests_repository_mongo import MongoJobRequestsRepository
 
@@ -119,15 +119,15 @@ class TestAPI:
         }
 
     def test_discoveries_status_patch(self):
-        client = self.make_client(status=RequestStatus.RUNNING)
+        client = self.make_client(status=DiscoveryStatus.RUNNING)
         request_id = '123'
 
-        response = client.patch(f'/discoveries/{request_id}', json={'status': RequestStatus.RUNNING})
+        response = client.patch(f'/discoveries/{request_id}', json={'status': DiscoveryStatus.RUNNING})
 
         assert response.status_code == 200
         assert response.json() == {
             'request_id': request_id,
-            'request_status': RequestStatus.RUNNING.value,
+            'request_status': DiscoveryStatus.RUNNING.value,
         }
 
     def test_discoveries_delete(self):
@@ -139,7 +139,7 @@ class TestAPI:
         assert response.status_code == 200
         assert response.json() == {
             'request_id': request_id,
-            'request_status': RequestStatus.DELETED.value,
+            'request_status': DiscoveryStatus.DELETED.value,
         }
 
     @staticmethod
@@ -149,9 +149,9 @@ class TestAPI:
         return TestClient(api)
 
     @staticmethod
-    def make_client(status: Optional[RequestStatus] = RequestStatus.PENDING) -> TestClient:
+    def make_client(status: Optional[DiscoveryStatus] = DiscoveryStatus.PENDING) -> TestClient:
         repository = MongoJobRequestsRepository(mongo_client=MagicMock(), database='simod', collection='requests')
-        repository.get = MagicMock(return_value=JobRequest(
+        repository.get = MagicMock(return_value=DiscoveryRequest(
             _id='123',
             status=status,
             configuration_path='configuration.yaml',

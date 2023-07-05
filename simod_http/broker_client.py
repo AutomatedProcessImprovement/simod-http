@@ -8,7 +8,7 @@ import pika
 import pika.exceptions
 from pika.spec import PERSISTENT_DELIVERY_MODE
 
-from simod_http.requests import JobRequest
+from simod_http.discoveries import DiscoveryRequest
 
 
 class BrokerClient:
@@ -94,7 +94,7 @@ class BrokerClient:
                           f'because of an unknown error: {e}')
             self.basic_publish_request(request_id)
 
-    def basic_publish_request(self, request: JobRequest):
+    def basic_publish_request(self, request: DiscoveryRequest):
         parameters = pika.URLParameters(self._broker_url)
         connection = pika.BlockingConnection(parameters)
         channel = connection.channel()

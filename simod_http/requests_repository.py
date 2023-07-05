@@ -2,20 +2,20 @@ from abc import abstractmethod, ABCMeta
 from pathlib import Path
 from typing import Optional, List
 
-from simod_http.requests import JobRequest
+from simod_http.discoveries import DiscoveryRequest
 
 
 class JobRequestsRepositoryInterface(metaclass=ABCMeta):
     @abstractmethod
-    def create(self, request: JobRequest, requests_storage_path: Path) -> JobRequest:
+    def create(self, request: DiscoveryRequest, requests_storage_path: Path) -> DiscoveryRequest:
         pass
 
     @abstractmethod
-    def get(self, request_id: str) -> Optional[JobRequest]:
+    def get(self, request_id: str) -> Optional[DiscoveryRequest]:
         pass
 
     @abstractmethod
-    def save(self, request: JobRequest):
+    def save(self, request: DiscoveryRequest):
         pass
 
     @abstractmethod
@@ -27,7 +27,7 @@ class JobRequestsRepositoryInterface(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def get_all(self) -> List[JobRequest]:
+    def get_all(self) -> List[DiscoveryRequest]:
         pass
 
     @abstractmethod

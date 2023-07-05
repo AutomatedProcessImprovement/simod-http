@@ -11,7 +11,7 @@ from simod_http.broker_client import BrokerClient, make_broker_client
 from simod_http.exceptions import NotFound, InternalServerError
 from simod_http.files_repository import FilesRepositoryInterface
 from simod_http.files_repository_fs import FileSystemFilesRepository
-from simod_http.requests import RequestStatus, JobRequest
+from simod_http.discoveries import DiscoveryStatus, DiscoveryRequest
 from simod_http.requests_repository import JobRequestsRepositoryInterface
 from simod_http.requests_repository_mongo import make_mongo_job_requests_repository
 
@@ -23,7 +23,7 @@ def make_app() -> FastAPI:
 
 
 class PatchJobRequest(BaseModel):
-    status: RequestStatus
+    status: DiscoveryStatus
 
 
 class Application(BaseSettings):
@@ -123,7 +123,7 @@ class Application(BaseSettings):
 
         return app
 
-    def load_request(self, request_id: str) -> JobRequest:
+    def load_request(self, request_id: str) -> DiscoveryRequest:
         result = self.job_requests_repository.get(request_id)
 
         if result is None:
@@ -131,8 +131,8 @@ class Application(BaseSettings):
 
         return result
 
-    def make_results_url_for(self, request_id: str, status: RequestStatus) -> Union[str, None]:
-        if status == RequestStatus.SUCCEEDED:
+    def make_results_url_for(self, request_id: str, status: DiscoveryStatus) -> Union[str, None]:
+        if status == DiscoveryStatus.SUCCEEDED:
             if self.simod_http_port == 80:
                 port = ''
             else:
@@ -143,7 +143,7 @@ class Application(BaseSettings):
                    f'/{request_id}.tar.gz'
         return None
 
-    def publish_request(self, request: JobRequest):
+    def publish_request(self, request: DiscoveryRequest):
         if self.broker_client is None:
             logging.error('Broker client is not initialized')
             raise InternalServerError(message='Broker client is not initialized')

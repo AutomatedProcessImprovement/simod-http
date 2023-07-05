@@ -6,7 +6,7 @@ from typing import Optional, Union
 from pydantic import BaseModel
 
 
-class RequestStatus(str, Enum):
+class DiscoveryStatus(str, Enum):
     UNKNOWN = 'unknown'
     ACCEPTED = 'accepted'
     PENDING = 'pending'
@@ -28,9 +28,9 @@ class NotificationSettings(BaseModel):
 
 
 @dataclass
-class JobRequest:
+class DiscoveryRequest:
     configuration_path: str
-    status: RequestStatus
+    status: DiscoveryStatus
     _id: Optional[str] = None
     output_dir: Optional[str] = None
     notification_settings: Optional[NotificationSettings] = None

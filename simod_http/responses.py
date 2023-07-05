@@ -4,12 +4,12 @@ from pydantic import BaseModel
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 
-from simod_http.requests import RequestStatus
+from simod_http.discoveries import DiscoveryStatus
 
 
 class Response(BaseModel):
     request_id: Union[str, None]
-    request_status: Union[RequestStatus, None]
+    request_status: Union[DiscoveryStatus, None]
     error: Union[str, None]
     archive_url: Union[str, None]
 
