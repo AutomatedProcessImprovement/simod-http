@@ -1,13 +1,14 @@
 import logging
 import os
 from pathlib import Path
-from typing import Union
+from typing import Union, Optional
 
 from fastapi import FastAPI
 from pydantic import BaseModel, BaseSettings
 from pymongo import MongoClient
 
 from simod_http.broker_client import BrokerClient, make_broker_client
+from simod_http.configurations import HttpConfiguration, ApplicationConfiguration
 from simod_http.exceptions import NotFound, InternalServerError
 from simod_http.files_repository import FilesRepositoryInterface
 from simod_http.files_repository_fs import FileSystemFilesRepository
@@ -16,138 +17,69 @@ from simod_http.discoveries_repository import DiscoveriesRepositoryInterface
 from simod_http.discoveries_repository_mongo import make_mongo_job_requests_repository
 
 
-def make_app() -> FastAPI:
-    api = FastAPI()
-    api.state.app = Application.init()
-    return api
-
-
 class PatchJobRequest(BaseModel):
     status: DiscoveryStatus
 
 
-class Application(BaseSettings):
-    """
-    Simod application that stores main settings and provides access to internal API.
-    """
-
-    logger = logging.getLogger('simod_http.application')
-
-    # These host and port are used to compose a link to the resulting archive.
-    simod_http_host: str = 'localhost'
-    simod_http_port: int = 8000
-    simod_http_scheme: str = 'http'
-
-    # Path on the file system to store results until the user fetches them, or they expire.
-    simod_http_storage_path: Union[str, None] = None
-    simod_http_request_expiration_timedelta: int = 60 * 60 * 24 * 7  # 7 days
-    simod_http_storage_cleaning_timedelta: int = 60
-
-    # Logging levels: CRITICAL, FATAL, ERROR, WARNING, WARN, INFO, DEBUG, NOTSET
-    simod_http_log_level: str = 'debug'
-    simod_http_log_format = '%(asctime)s \t %(name)s \t %(levelname)s \t %(message)s'
-    simod_http_log_path: Union[str, None] = None
-
-    # Broker settings
-    broker_url: str = 'amqp://guest:guest@localhost:5672/'
-    simod_exchange_name: str = 'simod'
-    simod_pending_routing_key: str = 'requests.status.pending'
-
-    broker_client: Union[BrokerClient, None] = None
-
-    # Repositories settings
-    mongo_url: str = 'mongodb://localhost:27017/'
-    mongo_database: str = 'simod'
-    mongo_requests_collection: str = 'requests'
-    mongo_username: str = 'root'
-    mongo_password: str = 'example'
-
-    files_repository: Union[FilesRepositoryInterface, None] = None
-    job_requests_repository: Union[DiscoveriesRepositoryInterface, None] = None
-
-    # Derived storage paths
-    files_storage_path: Union[Path, None] = None
-    requests_storage_path: Union[Path, None] = None
-
-    class Config:
-        env_file = '.env'
-
-    def __init__(self, **data):
-        super().__init__(**data)
-
-        logging.basicConfig(
-            level=self.simod_http_log_level.upper(),
-            format=self.simod_http_log_format,
-            filename=self.simod_http_log_path,
-        )
-
-        self.logger.info(f'Application initialized: {self}')
-
-    @staticmethod
-    def init() -> 'Application':
-        debug = os.environ.get('SIMOD_HTTP_DEBUG', 'false').lower() == 'true'
-
-        if debug:
-            app = Application()
+def make_results_url_for(request_id: str, status: DiscoveryStatus, http: HttpConfiguration) -> Union[str, None]:
+    if status == DiscoveryStatus.SUCCEEDED:
+        if http.port == 80:
+            port = ""
         else:
-            app = Application(_env_file='.env.production')
-
-        app.simod_http_storage_path = os.environ.get('SIMOD_HTTP_STORAGE_PATH', './data')
-
-        app.files_storage_path = Path(app.simod_http_storage_path) / 'files'
-        app.requests_storage_path = Path(app.simod_http_storage_path) / 'requests'
-        app.files_storage_path.mkdir(parents=True, exist_ok=True)
-        app.requests_storage_path.mkdir(parents=True, exist_ok=True)
-
-        broker_client = make_broker_client(app.broker_url, app.simod_exchange_name, app.simod_pending_routing_key)
-        app.broker_client = broker_client
-        app.logger.info(f'Broker client initialized: {app.broker_client}')
-
-        mongo_client = MongoClient(
-            app.mongo_url,
-            username=app.mongo_username,
-            password=app.mongo_password,
-        )
-
-        files_repository = FileSystemFilesRepository(
-            files_storage_path=app.files_storage_path,
-        )
-        app.files_repository = files_repository
-
-        job_requests_repository = make_mongo_job_requests_repository(
-            mongo_client=mongo_client,
-            database=app.mongo_database,
-            collection=app.mongo_requests_collection,
-        )
-        app.job_requests_repository = job_requests_repository
-
-        return app
-
-    def load_request(self, request_id: str) -> DiscoveryRequest:
-        result = self.job_requests_repository.get(request_id)
-
-        if result is None:
-            raise NotFound(message='Request not found', request_id=request_id)
-
-        return result
-
-    def make_results_url_for(self, request_id: str, status: DiscoveryStatus) -> Union[str, None]:
-        if status == DiscoveryStatus.SUCCEEDED:
-            if self.simod_http_port == 80:
-                port = ''
-            else:
-                port = f':{self.simod_http_port}'
-            return f'{self.simod_http_scheme}://{self.simod_http_host}{port}' \
-                   f'/discoveries' \
-                   f'/{request_id}' \
-                   f'/{request_id}.tar.gz'
-        return None
-
-    def publish_request(self, request: DiscoveryRequest):
-        if self.broker_client is None:
-            logging.error('Broker client is not initialized')
-            raise InternalServerError(message='Broker client is not initialized')
-
-        self.broker_client.basic_publish_request(request)
+            port = f":{http.port}"
+        return f"{http.scheme}://{http.host}{port}" f"/discoveries" f"/{request_id}" f"/{request_id}.tar.gz"
+    return None
 
 
+class Application:
+    configuration: ApplicationConfiguration
+    logger = logging.getLogger("simod_http.application")
+
+    # Initialization of the fields below happens only once, when a property is accessed for the first time
+    _files_repository: FilesRepositoryInterface
+    _discoveries_repository: DiscoveriesRepositoryInterface
+    _broker_client: BrokerClient
+    _mongo_client: MongoClient
+
+    def __init__(self, configuration: ApplicationConfiguration):
+        self.configuration = configuration
+
+    @property
+    def broker_client(self) -> BrokerClient:
+        if self._broker_client is None:
+            self._broker_client = make_broker_client(
+                self.configuration.broker.url,
+                self.configuration.broker.exchange_name,
+                self.configuration.broker.pending_routing_key,
+            )
+        return self._broker_client
+
+    @property
+    def mongo_client(self) -> MongoClient:
+        if self._mongo_client is None:
+            self._mongo_client = MongoClient(
+                self.configuration.mongo.url, username="root", password="example"
+            )  # TODO: refactor credentials
+        return self._mongo_client
+
+    @property
+    def files_repository(self) -> FilesRepositoryInterface:
+        if self._files_repository is None:
+            self._files_repository = FileSystemFilesRepository(self.configuration.storage.files_path)
+        return self._files_repository
+
+    @property
+    def discoveries_repository(self) -> DiscoveriesRepositoryInterface:
+        if self._discoveries_repository is None:
+            self._discoveries_repository = make_mongo_job_requests_repository(
+                self.mongo_client,
+                self.configuration.mongo.database_name,
+                self.configuration.mongo.discoveries_collection,
+            )
+        return self._discoveries_repository
+
+    def close(self):
+        if self._broker_client is not None:
+            self._broker_client.close()
+        if self._mongo_client is not None:
+            self._mongo_client.close()
