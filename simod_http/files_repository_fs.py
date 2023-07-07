@@ -5,7 +5,6 @@ from simod_http.files_repository import FilesRepositoryInterface, File, compute_
 
 
 class FileSystemFilesRepository(FilesRepositoryInterface):
-
     def __init__(self, files_storage_path: Path):
         self.files_storage_path = files_storage_path
         self.files_storage_path.mkdir(parents=True, exist_ok=True)
@@ -15,7 +14,7 @@ class FileSystemFilesRepository(FilesRepositoryInterface):
 
     def create(self, content: bytes, suffix: str) -> File:
         file_hash = compute_sha256(content)
-        file_name = f'{file_hash}{suffix}'
+        file_name = f"{file_hash}{suffix}"
 
         new_file = File(
             file_name=file_name,

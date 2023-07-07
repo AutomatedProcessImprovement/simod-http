@@ -9,7 +9,7 @@ def stub_broker_client() -> BrokerClient:
     channel = MagicMock()
     connection = MagicMock(spec=BlockingConnection)
     connection.channel.return_value = channel
-    client = BrokerClient('', '', '', connection=connection)
+    client = BrokerClient("", "", "", connection=connection)
     client.publish_request = MagicMock()
     client.connect = MagicMock()
     return client

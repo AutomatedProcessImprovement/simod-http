@@ -8,7 +8,7 @@ from simod_http.broker_client import BrokerClient, make_broker_client
 from simod_http.configurations import HttpConfiguration, ApplicationConfiguration
 from simod_http.discoveries import DiscoveryStatus
 from simod_http.discoveries_repository import DiscoveriesRepositoryInterface
-from simod_http.discoveries_repository_mongo import make_mongo_job_requests_repository
+from simod_http.discoveries_repository_mongo import make_mongo_discoveries_repository
 from simod_http.files_repository import FilesRepositoryInterface
 from simod_http.files_repository_fs import FileSystemFilesRepository
 
@@ -72,7 +72,7 @@ class Application:
     @property
     def discoveries_repository(self) -> DiscoveriesRepositoryInterface:
         if self._discoveries_repository is None:
-            self._discoveries_repository = make_mongo_job_requests_repository(
+            self._discoveries_repository = make_mongo_discoveries_repository(
                 self.mongo_client,
                 self.configuration.mongo.database,
                 self.configuration.mongo.discoveries_collection,

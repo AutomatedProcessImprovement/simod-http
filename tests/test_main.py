@@ -25,7 +25,7 @@ def stub_broker_client() -> BrokerClient:
     channel = MagicMock()
     connection = MagicMock(spec=BlockingConnection)
     connection.channel.return_value = channel
-    client = BrokerClient('', '', '', connection=connection)
+    client = BrokerClient("", "", "", connection=connection)
     client.basic_publish_request = MagicMock()
     client.publish_request = MagicMock()
     client.connect = MagicMock()
@@ -38,8 +38,8 @@ def inject_requests_repository(api: FastAPI, repository: DiscoveriesRepositoryIn
 
 
 def stub_requests_repository_failing() -> MongoDiscoveriesRepository:
-    repository = MongoDiscoveriesRepository(mongo_client=MagicMock(), database='simod', collection='requests')
-    repository.get = MagicMock(side_effect=NotFound(message='Request not found', request_id='123'))
+    repository = MongoDiscoveriesRepository(mongo_client=MagicMock(), database="simod", collection="requests")
+    repository.get = MagicMock(side_effect=NotFound(message="Request not found", request_id="123"))
     repository.save = MagicMock()
     return repository
 
@@ -52,46 +52,46 @@ class TestAPI:
     def test_root(self):
         client = self.make_failing_client()
 
-        response = client.get('/')
+        response = client.get("/")
 
         assert response.status_code == 404
         assert response.json() == {
-            'error': 'Not Found',
+            "error": "Not Found",
         }
 
     def test_catch_all_route(self):
         client = self.make_failing_client()
 
-        response = client.get('/foo')
+        response = client.get("/foo")
 
         assert response.status_code == 404
         assert response.json() == {
-            'error': 'Not Found',
+            "error": "Not Found",
         }
 
     def test_discoveries_get(self):
         client = self.make_failing_client()
 
-        response = client.get('/discoveries/123')
+        response = client.get("/discoveries/123")
 
         assert response.status_code == 404
         assert response.json() == {
-            'request_id': '123',
-            'error': 'Request not found',
+            "request_id": "123",
+            "error": "Request not found",
         }
 
     def test_discoveries_patch(self):
         client = self.make_failing_client()
 
-        response = client.patch('/discoveries/123')
+        response = client.patch("/discoveries/123")
 
         assert response.status_code == 422
         assert response.json() == {
-            'error': [
+            "error": [
                 {
-                    'loc': ['body'],
-                    'msg': 'field required',
-                    'type': 'value_error.missing',
+                    "loc": ["body"],
+                    "msg": "field required",
+                    "type": "value_error.missing",
                 }
             ]
         }
@@ -102,44 +102,44 @@ class TestAPI:
         response = self.post_discovery(client)
 
         assert response.status_code == 202
-        assert 'request_id' in response.json()
+        assert "request_id" in response.json()
 
     def test_discoveries_file(self):
         client = self.make_client()
-        request_id = '123'
+        request_id = "123"
 
-        archive_file = f'{request_id}.tar.gz'
-        response = client.get(f'/discoveries/{request_id}/{archive_file}')
+        archive_file = f"{request_id}.tar.gz"
+        response = client.get(f"/discoveries/{request_id}/{archive_file}")
 
         assert response.status_code == 404
         assert response.json() == {
-            'error': f'File not found: {archive_file}',
-            'request_id': request_id,
-            'request_status': 'pending',
+            "error": f"File not found: {archive_file}",
+            "request_id": request_id,
+            "request_status": "pending",
         }
 
     def test_discoveries_status_patch(self):
         client = self.make_client(status=DiscoveryStatus.RUNNING)
-        request_id = '123'
+        request_id = "123"
 
-        response = client.patch(f'/discoveries/{request_id}', json={'status': DiscoveryStatus.RUNNING})
+        response = client.patch(f"/discoveries/{request_id}", json={"status": DiscoveryStatus.RUNNING})
 
         assert response.status_code == 200
         assert response.json() == {
-            'request_id': request_id,
-            'request_status': DiscoveryStatus.RUNNING.value,
+            "request_id": request_id,
+            "request_status": DiscoveryStatus.RUNNING.value,
         }
 
     def test_discoveries_delete(self):
         client = self.make_client()
-        request_id = '123'
+        request_id = "123"
 
-        response = client.delete(f'/discoveries/{request_id}')
+        response = client.delete(f"/discoveries/{request_id}")
 
         assert response.status_code == 200
         assert response.json() == {
-            'request_id': request_id,
-            'request_status': DiscoveryStatus.DELETED.value,
+            "request_id": request_id,
+            "request_status": DiscoveryStatus.DELETED.value,
         }
 
     @staticmethod
@@ -150,13 +150,15 @@ class TestAPI:
 
     @staticmethod
     def make_client(status: Optional[DiscoveryStatus] = DiscoveryStatus.PENDING) -> TestClient:
-        repository = MongoDiscoveriesRepository(mongo_client=MagicMock(), database='simod', collection='requests')
-        repository.get = MagicMock(return_value=DiscoveryRequest(
-            _id='123',
-            status=status,
-            configuration_path='configuration.yaml',
-            output_dir='output',
-        ))
+        repository = MongoDiscoveriesRepository(mongo_client=MagicMock(), database="simod", collection="requests")
+        repository.get = MagicMock(
+            return_value=DiscoveryRequest(
+                _id="123",
+                status=status,
+                configuration_path="configuration.yaml",
+                output_dir="output",
+            )
+        )
         repository.save = MagicMock()
         repository.save_status = MagicMock()
         inject_requests_repository(api, repository)
@@ -167,19 +169,19 @@ class TestAPI:
 
     @staticmethod
     def post_discovery(client: TestClient) -> Response:
-        assets_dir = path_to_current_file_dir() / 'assets'
-        configuration_path = assets_dir / 'sample.yaml'
-        event_log_path = assets_dir / 'PurchasingExample.xes'
+        assets_dir = path_to_current_file_dir() / "assets"
+        configuration_path = assets_dir / "sample.yaml"
+        event_log_path = assets_dir / "PurchasingExample.xes"
 
         data = MultipartEncoder(
             fields={
-                'configuration': ('configuration.yaml', configuration_path.open('rb'), 'text/yaml'),
-                'event_log': ('event_log.xes', event_log_path.open('rb'), 'application/xml'),
+                "configuration": ("configuration.yaml", configuration_path.open("rb"), "text/yaml"),
+                "event_log": ("event_log.xes", event_log_path.open("rb"), "application/xml"),
             }
         )
 
         response = client.post(
-            '/discoveries',
+            "/discoveries",
             headers={"Content-Type": data.content_type},
             content=data.to_string(),
         )

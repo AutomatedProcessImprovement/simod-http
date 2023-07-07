@@ -20,7 +20,7 @@ class Response(BaseModel):
         )
 
     @staticmethod
-    def from_http_exception(exc: HTTPException) -> 'Response':
+    def from_http_exception(exc: HTTPException) -> "Response":
         return Response(
             error=exc.detail,
         )

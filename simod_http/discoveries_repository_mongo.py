@@ -20,10 +20,12 @@ class MongoDiscoveriesRepository(DiscoveriesRepositoryInterface):
         self._create_indexes()
 
     def _create_indexes(self):
-        self.collection.create_index([
-            ('status', pymongo.ASCENDING),
-            ('created_timestamp', pymongo.ASCENDING),
-        ])
+        self.collection.create_index(
+            [
+                ("status", pymongo.ASCENDING),
+                ("created_timestamp", pymongo.ASCENDING),
+            ]
+        )
 
     def create(self, request: DiscoveryRequest, requests_storage_path: Path) -> DiscoveryRequest:
         request.created_timestamp = datetime.datetime.now()
@@ -41,7 +43,7 @@ class MongoDiscoveriesRepository(DiscoveriesRepositoryInterface):
     def get(self, request_id: str) -> Optional[DiscoveryRequest]:
         oid = ObjectId(request_id)
 
-        result = self.collection.find_one({'_id': oid})
+        result = self.collection.find_one({"_id": oid})
 
         if result is None:
             return None
@@ -56,8 +58,8 @@ class MongoDiscoveriesRepository(DiscoveriesRepositoryInterface):
         oid = ObjectId(request.get_id())
 
         self.collection.update_one(
-            {'_id': oid},
-            {'$set': request.to_dict(without_id=True)},
+            {"_id": oid},
+            {"$set": request.to_dict(without_id=True)},
             upsert=True,
         )
 
@@ -65,27 +67,29 @@ class MongoDiscoveriesRepository(DiscoveriesRepositoryInterface):
         oid = ObjectId(request_id)
 
         updated_object = {
-            'status': status.value,
+            "status": status.value,
         }
 
         if status == DiscoveryStatus.RUNNING:
-            updated_object['started_timestamp'] = datetime.datetime.now()
-        elif status == DiscoveryStatus.FAILED or status == DiscoveryStatus.DELETED or status == DiscoveryStatus.SUCCEEDED:
-            updated_object['finished_timestamp'] = datetime.datetime.now()
+            updated_object["started_timestamp"] = datetime.datetime.now()
+        elif (
+            status == DiscoveryStatus.FAILED or status == DiscoveryStatus.DELETED or status == DiscoveryStatus.SUCCEEDED
+        ):
+            updated_object["finished_timestamp"] = datetime.datetime.now()
 
         if status == DiscoveryStatus.SUCCEEDED and archive_url is not None:
-            updated_object['archive_url'] = archive_url
+            updated_object["archive_url"] = archive_url
 
         self.collection.update_one(
-            {'_id': oid},
-            {'$set': updated_object},
+            {"_id": oid},
+            {"$set": updated_object},
             upsert=False,
         )
 
     def delete(self, request_id: str):
         oid = ObjectId(request_id)
 
-        self.collection.delete_one({'_id': oid})
+        self.collection.delete_one({"_id": oid})
 
     def get_all(self) -> List[DiscoveryRequest]:
         result = self.collection.find({})
@@ -96,16 +100,16 @@ class MongoDiscoveriesRepository(DiscoveriesRepositoryInterface):
         return result.deleted_count
 
 
-def make_mongo_job_requests_repository(
-        mongo_client: MongoClient,
-        database: str,
-        collection: str,
+def make_mongo_discoveries_repository(
+    mongo_client: MongoClient,
+    database: str,
+    collection: str,
 ) -> Union[MongoDiscoveriesRepository, MagicMock]:
-    use_fake = os.environ.get('SIMOD_FAKE_REQUESTS_REPOSITORY', 'false').lower() == 'true'
+    use_fake = os.environ.get("SIMOD_FAKE_REQUESTS_REPOSITORY", "false").lower() == "true"
     if use_fake:
         repository = MagicMock()
-        repository.create.return_value = DiscoveryRequest(configuration_path='fake', status=DiscoveryStatus.PENDING)
-        repository.get.return_value = DiscoveryRequest(configuration_path='fake', status=DiscoveryStatus.PENDING)
+        repository.create.return_value = DiscoveryRequest(configuration_path="fake", status=DiscoveryStatus.PENDING)
+        repository.get.return_value = DiscoveryRequest(configuration_path="fake", status=DiscoveryStatus.PENDING)
         return repository
     else:
         return MongoDiscoveriesRepository(

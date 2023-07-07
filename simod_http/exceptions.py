@@ -12,14 +12,14 @@ class BaseRequestException(Exception):
     request_id = None
     request_status = None
     archive_url = None
-    message = 'Internal server error'
+    message = "Internal server error"
 
     def __init__(
-            self,
-            request_id: Union[str, None] = None,
-            message: Union[str, None] = None,
-            request_status: Union[DiscoveryStatus, None] = None,
-            archive_url: Union[str, None] = None,
+        self,
+        request_id: Union[str, None] = None,
+        message: Union[str, None] = None,
+        request_status: Union[DiscoveryStatus, None] = None,
+        archive_url: Union[str, None] = None,
     ):
         if request_id is not None:
             self.request_id = request_id
@@ -51,24 +51,24 @@ class BaseRequestException(Exception):
 
 class NotFound(BaseRequestException):
     _status_code = 404
-    message = 'Not Found'
+    message = "Not Found"
 
 
 class BadMultipartRequest(BaseRequestException):
     _status_code = 400
-    message = 'Bad Multipart Request'
+    message = "Bad Multipart Request"
 
 
 class UnsupportedMediaType(BaseRequestException):
     _status_code = 415
-    message = 'Unsupported Media Type'
+    message = "Unsupported Media Type"
 
 
 class InternalServerError(BaseRequestException):
     _status_code = 500
-    message = 'Internal Server Error'
+    message = "Internal Server Error"
 
 
 class NotSupported(BaseRequestException):
     _status_code = 501
-    message = 'Not Supported'
+    message = "Not Supported"
