@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Optional
 from unittest.mock import MagicMock
 
+from bson import ObjectId
 from fastapi import FastAPI
 from httpx import Response
 from pika import BlockingConnection
@@ -17,7 +18,7 @@ from simod_http.discoveries_repository_mongo import MongoDiscoveriesRepository
 
 
 def inject_broker_client(api: FastAPI, client: BrokerClient) -> FastAPI:
-    api.state.app.broker_client = client
+    api.state.app._broker_client = client
     return api
 
 
@@ -33,12 +34,12 @@ def stub_broker_client() -> BrokerClient:
 
 
 def inject_discoveries_repository(api: FastAPI, repository: DiscoveriesRepositoryInterface) -> FastAPI:
-    api.state.app.job_requests_repository = repository
+    api.state.app._discoveries_repository = repository
     return api
 
 
 def stub_discoveries_repository_failing() -> MongoDiscoveriesRepository:
-    repository = MongoDiscoveriesRepository(mongo_client=MagicMock(), database="simod", collection="requests")
+    repository = MongoDiscoveriesRepository(mongo_client=MagicMock(), database="simod", collection="discoveries")
     repository.get = MagicMock(side_effect=NotFound(message="Discovery not found", discovery_id="123"))
     repository.save = MagicMock()
     return repository
@@ -77,7 +78,7 @@ class TestAPI:
         assert response.status_code == 404
         assert response.json() == {
             "discovery_id": "123",
-            "error": "Request not found",
+            "error": "Discovery not found",
         }
 
     def test_discoveries_patch(self):

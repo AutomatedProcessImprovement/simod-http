@@ -22,6 +22,20 @@ from simod_http.responses import Response as AppResponse
 app = make_app()
 
 
+@asynccontextmanager
+async def lifespan(_api: FastAPI):
+    set_up_logging(app.configuration.logging)
+
+    if app.configuration.debug:
+        app.logger.debug("Debug mode is on")
+        app.logger.debug(f"Configuration: {app.configuration}")
+    else:
+        app.logger.info("Debug mode is off")
+
+    yield
+    app.close()
+
+
 def set_up_logging(config: LoggingConfiguration):
     logging_handlers = []
     if config.path is not None:
@@ -40,21 +54,10 @@ def set_up_logging(config: LoggingConfiguration):
         )
 
 
-@asynccontextmanager
-async def lifespan(_api: FastAPI):
-    set_up_logging(app.configuration.logging)
-
-    if app.configuration.debug:
-        app.logger.debug("Debug mode is on")
-        app.logger.debug(f"Configuration: {app.configuration}")
-    else:
-        app.logger.info("Debug mode is off")
-
-    yield
-    app.close()
-
-
 api = FastAPI(lifespan=lifespan)
+# Injecting the application instance into the FastAPI instance
+# allows to inject a mock application instance in tests for handlers
+api.state.app = app
 
 
 # Routes: /
@@ -79,6 +82,8 @@ async def create_discovery(
     """
     Create a new business process simulation model discovery discovery.
     """
+    app = api.state.app
+
     if email is not None:
         raise NotSupported(message="Email notifications are not supported")
 
@@ -107,6 +112,8 @@ async def read_discoveries() -> JSONResponse:
     """
     Get all business process simulation model discoveries.
     """
+    app = api.state.app
+
     discoveries = app.discoveries_repository.get_all()
 
     return JSONResponse(status_code=200, content={"discoveries": discoveries})
@@ -117,6 +124,8 @@ async def delete_discoveries() -> JSONResponse:
     """
     Delete all business process simulation model discoveries.
     """
+    app = api.state.app
+
     discoveries = app.discoveries_repository.get_all()
 
     try:
@@ -137,6 +146,8 @@ async def read_discovery_configuration(discovery_id: str) -> Response:
     """
     Get the configuration of the discovery.
     """
+    app = api.state.app
+
     try:
         discovery = app.discoveries_repository.get(discovery_id)
         if discovery is None:
@@ -180,10 +191,14 @@ async def read_discovery_file(discovery_id: str, file_name: str):
     """
     Get a file for the discovery.
     """
+    app = api.state.app
+
     try:
         discovery = app.discoveries_repository.get(discovery_id)
         if discovery is None:
             raise NotFound(message="Discovery not found", discovery_id=discovery_id)
+    except NotFound as e:
+        raise e
     except Exception as e:
         raise InternalServerError(
             discovery_id=discovery_id,
@@ -221,10 +236,14 @@ async def read_discovery(discovery_id: str) -> Discovery:
     """
     Get the status of the discovery.
     """
+    app = api.state.app
+
     try:
         discovery = app.discoveries_repository.get(discovery_id)
         if discovery is None:
             raise NotFound(message="Discovery not found", discovery_id=discovery_id)
+    except NotFound as e:
+        raise e
     except Exception as e:
         raise InternalServerError(
             discovery_id=discovery_id,
@@ -240,6 +259,8 @@ async def patch_discovery(discovery_id: str, payload: PatchDiscoveryPayload) -> 
     """
     Update the status of the discovery.
     """
+    app = api.state.app
+
     try:
         archive_url = None
         if payload.status == DiscoveryStatus.SUCCEEDED:
@@ -260,10 +281,14 @@ async def patch_discovery(discovery_id: str, payload: PatchDiscoveryPayload) -> 
 
 @api.delete("/discoveries/{discovery_id}")
 async def delete_discovery(discovery_id: str) -> JSONResponse:
+    app = api.state.app
+
     try:
         discovery = app.discoveries_repository.get(discovery_id)
         if discovery is None:
             raise NotFound(message="Discovery not found", discovery_id=discovery_id)
+    except NotFound as e:
+        raise e
     except Exception as e:
         raise InternalServerError(
             discovery_id=discovery_id,
@@ -277,6 +302,9 @@ async def delete_discovery(discovery_id: str) -> JSONResponse:
         discovery_id=discovery_id,
         discovery_status=DiscoveryStatus.DELETED,
     ).json_response(status_code=200)
+
+
+# Controller helpers
 
 
 def _infer_media_type_from_extension(file_name) -> str:
@@ -417,6 +445,9 @@ def _remove_fs_directories(discoveries: List[Discovery]):
             output_dir = Path(discovery.output_dir)
             if output_dir.exists():
                 shutil.rmtree(output_dir)
+
+
+# Exception handling
 
 
 @api.exception_handler(HTTPException)
