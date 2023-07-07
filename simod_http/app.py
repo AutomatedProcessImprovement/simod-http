@@ -1,31 +1,14 @@
 import logging
-from dataclasses import dataclass
-from typing import Union, Optional
+from typing import Optional
 
 from pymongo import MongoClient
 
 from simod_http.broker_client import BrokerClient, make_broker_client
-from simod_http.configurations import HttpConfiguration, ApplicationConfiguration
-from simod_http.discoveries import DiscoveryStatus
+from simod_http.configurations import ApplicationConfiguration
 from simod_http.discoveries_repository import DiscoveriesRepositoryInterface
 from simod_http.discoveries_repository_mongo import make_mongo_discoveries_repository
 from simod_http.files_repository import FilesRepositoryInterface
 from simod_http.files_repository_fs import FileSystemFilesRepository
-
-
-@dataclass
-class PatchDiscoveryPayload:
-    status: DiscoveryStatus
-
-
-def make_results_url_for(discovery_id: str, status: DiscoveryStatus, http: HttpConfiguration) -> Union[str, None]:
-    if status == DiscoveryStatus.SUCCEEDED:
-        if http.port == 80:
-            port = ""
-        else:
-            port = f":{http.port}"
-        return f"{http.scheme}://{http.host}{port}" f"/discoveries" f"/{discovery_id}" f"/{discovery_id}.tar.gz"
-    return None
 
 
 class Application:
