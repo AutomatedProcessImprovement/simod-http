@@ -22,7 +22,7 @@ def test_application_configuration():
 
     assert config.broker.url == "amqp://guest:guest@localhost:5672"
     assert config.broker.exchange_name == "simod"
-    assert config.broker.pending_routing_key == "requests.status.pending"
+    assert config.broker.pending_routing_key == "discoveries.status.pending"
 
     assert config.mongo.url == "mongodb://localhost:27017/simod"
-    assert config.mongo.discoveries_collection == "requests"
+    assert config.mongo.discoveries_collection == "discoveries"

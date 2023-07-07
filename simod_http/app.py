@@ -14,17 +14,17 @@ from simod_http.files_repository_fs import FileSystemFilesRepository
 
 
 @dataclass
-class PatchJobRequest:
+class PatchDiscoveryPayload:
     status: DiscoveryStatus
 
 
-def make_results_url_for(request_id: str, status: DiscoveryStatus, http: HttpConfiguration) -> Union[str, None]:
+def make_results_url_for(discovery_id: str, status: DiscoveryStatus, http: HttpConfiguration) -> Union[str, None]:
     if status == DiscoveryStatus.SUCCEEDED:
         if http.port == 80:
             port = ""
         else:
             port = f":{http.port}"
-        return f"{http.scheme}://{http.host}{port}" f"/discoveries" f"/{request_id}" f"/{request_id}.tar.gz"
+        return f"{http.scheme}://{http.host}{port}" f"/discoveries" f"/{discovery_id}" f"/{discovery_id}.tar.gz"
     return None
 
 

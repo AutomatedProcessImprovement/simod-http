@@ -57,7 +57,7 @@ class LoggingConfiguration:
 class BrokerConfiguration:
     url: str = "amqp://guest:guest@localhost:5672/"
     exchange_name: str = "simod"
-    pending_routing_key: str = "requests.status.pending"
+    pending_routing_key: str = "discoveries.status.pending"
 
 
 @dataclass
@@ -103,7 +103,7 @@ class ApplicationConfiguration:
         self.broker = BrokerConfiguration(
             url=os.environ.get("SIMOD_BROKER_URL", "amqp://guest:guest@localhost:5672/"),
             exchange_name=os.environ.get("SIMOD_BROKER_EXCHANGE_NAME", "simod"),
-            pending_routing_key=os.environ.get("SIMOD_BROKER_PENDING_ROUTING_KEY", "requests.status.pending"),
+            pending_routing_key=os.environ.get("SIMOD_BROKER_PENDING_ROUTING_KEY", "discoveries.status.pending"),
         )
 
         self.mongo = MongoConfiguration(

@@ -28,7 +28,7 @@ class NotificationSettings(BaseModel):
 
 
 @dataclass
-class DiscoveryRequest:
+class Discovery:
     configuration_path: str
     status: DiscoveryStatus
     _id: Optional[str] = None
@@ -43,8 +43,8 @@ class DiscoveryRequest:
     def get_id(self) -> str:
         return self._id
 
-    def set_id(self, request_id: str):
-        self._id = request_id
+    def set_id(self, discovery_id: str):
+        self._id = discovery_id
 
     def to_dict(self, without_id: bool = False):
         d = {

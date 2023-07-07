@@ -8,7 +8,7 @@ import pymongo
 from bson import ObjectId
 from pymongo import MongoClient
 
-from simod_http.discoveries import DiscoveryRequest, DiscoveryStatus
+from simod_http.discoveries import Discovery, DiscoveryStatus
 from simod_http.discoveries_repository import DiscoveriesRepositoryInterface
 
 
@@ -27,21 +27,21 @@ class MongoDiscoveriesRepository(DiscoveriesRepositoryInterface):
             ]
         )
 
-    def create(self, request: DiscoveryRequest, requests_storage_path: Path) -> DiscoveryRequest:
-        request.created_timestamp = datetime.datetime.now()
+    def create(self, discovery: Discovery, discoveries_storage_path: Path) -> Discovery:
+        discovery.created_timestamp = datetime.datetime.now()
 
-        result = self.collection.insert_one(request.to_dict())
+        result = self.collection.insert_one(discovery.to_dict())
 
-        request.set_id(str(result.inserted_id))
+        discovery.set_id(str(result.inserted_id))
 
-        output_dir = requests_storage_path / request.get_id()
+        output_dir = discoveries_storage_path / discovery.get_id()
         output_dir.mkdir(parents=True, exist_ok=True)
-        request.output_dir = str(output_dir)
+        discovery.output_dir = str(output_dir)
 
-        return request
+        return discovery
 
-    def get(self, request_id: str) -> Optional[DiscoveryRequest]:
-        oid = ObjectId(request_id)
+    def get(self, discovery_id: str) -> Optional[Discovery]:
+        oid = ObjectId(discovery_id)
 
         result = self.collection.find_one({"_id": oid})
 
@@ -49,22 +49,22 @@ class MongoDiscoveriesRepository(DiscoveriesRepositoryInterface):
             return None
 
         # ObjectId to str
-        request = DiscoveryRequest(**result)
-        request.set_id(str(request_id))
+        discovery = Discovery(**result)
+        discovery.set_id(str(discovery_id))
 
-        return request
+        return discovery
 
-    def save(self, request: DiscoveryRequest):
-        oid = ObjectId(request.get_id())
+    def save(self, discovery: Discovery):
+        oid = ObjectId(discovery.get_id())
 
         self.collection.update_one(
             {"_id": oid},
-            {"$set": request.to_dict(without_id=True)},
+            {"$set": discovery.to_dict(without_id=True)},
             upsert=True,
         )
 
-    def save_status(self, request_id: str, status: DiscoveryStatus, archive_url: Optional[str] = None):
-        oid = ObjectId(request_id)
+    def save_status(self, discovery_id: str, status: DiscoveryStatus, archive_url: Optional[str] = None):
+        oid = ObjectId(discovery_id)
 
         updated_object = {
             "status": status.value,
@@ -86,14 +86,14 @@ class MongoDiscoveriesRepository(DiscoveriesRepositoryInterface):
             upsert=False,
         )
 
-    def delete(self, request_id: str):
-        oid = ObjectId(request_id)
+    def delete(self, discovery_id: str):
+        oid = ObjectId(discovery_id)
 
         self.collection.delete_one({"_id": oid})
 
-    def get_all(self) -> List[DiscoveryRequest]:
+    def get_all(self) -> List[Discovery]:
         result = self.collection.find({})
-        return [DiscoveryRequest(**r) for r in result]
+        return [Discovery(**r) for r in result]
 
     def delete_all(self) -> int:
         result = self.collection.delete_many({})
@@ -105,11 +105,11 @@ def make_mongo_discoveries_repository(
     database: str,
     collection: str,
 ) -> Union[MongoDiscoveriesRepository, MagicMock]:
-    use_fake = os.environ.get("SIMOD_FAKE_REQUESTS_REPOSITORY", "false").lower() == "true"
+    use_fake = os.environ.get("SIMOD_FAKE_DISCOVERIES_REPOSITORY", "false").lower() == "true"
     if use_fake:
         repository = MagicMock()
-        repository.create.return_value = DiscoveryRequest(configuration_path="fake", status=DiscoveryStatus.PENDING)
-        repository.get.return_value = DiscoveryRequest(configuration_path="fake", status=DiscoveryStatus.PENDING)
+        repository.create.return_value = Discovery(configuration_path="fake", status=DiscoveryStatus.PENDING)
+        repository.get.return_value = Discovery(configuration_path="fake", status=DiscoveryStatus.PENDING)
         return repository
     else:
         return MongoDiscoveriesRepository(

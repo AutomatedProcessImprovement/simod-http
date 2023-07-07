@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-SIMOD_FAKE_REQUESTS_REPOSITORY=true pytest
+SIMOD_FAKE_DISCOVERIES_REPOSITORY=true pytest

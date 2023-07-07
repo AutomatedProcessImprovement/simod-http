@@ -9,7 +9,7 @@ import pika.exceptions
 from pika.spec import PERSISTENT_DELIVERY_MODE
 
 from simod_http.exceptions import InternalServerError
-from simod_http.discoveries import DiscoveryRequest
+from simod_http.discoveries import Discovery
 
 
 class BrokerClient:
@@ -58,25 +58,25 @@ class BrokerClient:
 
         self._retries = 5
 
-    def publish_request(self, request: DiscoveryRequest):
+    def publish_discovery(self, discovery: Discovery):
         if self._broker_url is None:
             logging.error("Broker client is not initialized")
             raise InternalServerError(message="Broker client is not initialized")
 
-        self.basic_publish_request(request)
+        self.basic_publish_discovery(discovery)
 
-    def basic_publish_request(self, request: DiscoveryRequest):
+    def basic_publish_discovery(self, discovery: Discovery):
         parameters = pika.URLParameters(self._broker_url)
         connection = pika.BlockingConnection(parameters)
         channel = connection.channel()
         channel.exchange_declare(exchange=self._exchange_name, exchange_type="topic", durable=True)
 
-        request_id = request.get_id()
+        discovery_id = discovery.get_id()
 
         body = json.dumps(
             {
-                "request_id": request_id,
-                "configuration_path": request.configuration_path,
+                "discovery_id": discovery_id,
+                "configuration_path": discovery.configuration_path,
             }
         )
 
@@ -90,7 +90,7 @@ class BrokerClient:
             ),
         )
         connection.close()
-        logging.info(f"Published request {request_id} to {self._routing_key}")
+        logging.info(f"Published discovery {discovery_id} to {self._routing_key}")
 
     def close(self):
         if self._connection is not None and self._channel is not None:

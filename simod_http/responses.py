@@ -8,8 +8,8 @@ from simod_http.discoveries import DiscoveryStatus
 
 
 class Response(BaseModel):
-    request_id: Union[str, None]
-    request_status: Union[DiscoveryStatus, None]
+    discovery_id: Union[str, None]
+    discovery_status: Union[DiscoveryStatus, None]
     error: Union[str, None]
     archive_url: Union[str, None]
 

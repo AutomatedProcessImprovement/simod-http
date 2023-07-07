@@ -13,9 +13,9 @@ from starlette.datastructures import UploadFile
 from starlette.exceptions import HTTPException
 
 from simod_http.configurations import LoggingConfiguration
-from simod_http.app import PatchJobRequest, make_app, Application
+from simod_http.app import PatchDiscoveryPayload, make_app, Application
 from simod_http.app import make_results_url_for
-from simod_http.discoveries import DiscoveryRequest, DiscoveryStatus, NotificationMethod, NotificationSettings
+from simod_http.discoveries import Discovery, DiscoveryStatus, NotificationMethod, NotificationSettings
 from simod_http.exceptions import NotFound, BadMultipartRequest, UnsupportedMediaType, InternalServerError, NotSupported
 from simod_http.responses import Response as AppResponse
 
@@ -77,7 +77,7 @@ async def create_discovery(
     email: Optional[str] = None,
 ) -> JSONResponse:
     """
-    Create a new business process simulation model discovery request.
+    Create a new business process simulation model discovery discovery.
     """
     if email is not None:
         raise NotSupported(message="Email notifications are not supported")
@@ -86,81 +86,81 @@ async def create_discovery(
     event_log_path = _save_uploaded_event_log(event_log, app)
     configuration_path = _update_and_save_configuration(configuration, event_log_path, app)
 
-    request = DiscoveryRequest(
+    discovery = Discovery(
         notification_settings=notification_settings,
         configuration_path=str(configuration_path),
         status=DiscoveryStatus.ACCEPTED,
         output_dir=None,
     )
 
-    request = app.discoveries_repository.create(request, app.configuration.storage.discoveries_path)
-    app.logger.info(f"New request {request.get_id()}: status={request.status}")
+    discovery = app.discoveries_repository.create(discovery, app.configuration.storage.discoveries_path)
+    app.logger.info(f"New discovery {discovery.get_id()}: status={discovery.status}")
 
-    background_tasks.add_task(_process_post_request, request, app)
+    background_tasks.add_task(_process_post_discovery, discovery, app)
 
-    response = AppResponse(request_id=request.get_id(), request_status=request.status)
+    response = AppResponse(discovery_id=discovery.get_id(), discovery_status=discovery.status)
     return response.json_response(status_code=202)
 
 
 @api.get("/discoveries")
 async def read_discoveries() -> JSONResponse:
     """
-    Get all business process simulation model discovery requests.
+    Get all business process simulation model discoveries.
     """
-    requests = app.discoveries_repository.get_all()
+    discoveries = app.discoveries_repository.get_all()
 
-    return JSONResponse(status_code=200, content={"requests": requests})
+    return JSONResponse(status_code=200, content={"discoveries": discoveries})
 
 
 @api.delete("/discoveries")
 async def delete_discoveries() -> JSONResponse:
     """
-    Delete all business process simulation model discovery requests.
+    Delete all business process simulation model discoveries.
     """
-    requests = app.discoveries_repository.get_all()
+    discoveries = app.discoveries_repository.get_all()
 
     try:
-        _remove_fs_directories(requests)
+        _remove_fs_directories(discoveries)
     except Exception as e:
-        raise InternalServerError(request_id=None, message=f"Failed to remove directories of requests: {e}")
+        raise InternalServerError(discovery_id=None, message=f"Failed to remove directories of discoveries: {e}")
 
     deleted_amount = app.discoveries_repository.delete_all()
 
     return JSONResponse(status_code=200, content={"deleted_amount": deleted_amount})
 
 
-# Routes: /discoveries/{request_id}
+# Routes: /discoveries/{discovery_id}
 
 
-@api.get("/discoveries/{request_id}/configuration")
-async def read_discovery_configuration(request_id: str) -> Response:
+@api.get("/discoveries/{discovery_id}/configuration")
+async def read_discovery_configuration(discovery_id: str) -> Response:
     """
-    Get the configuration of the request.
+    Get the configuration of the discovery.
     """
     try:
-        request = app.discoveries_repository.get(request_id)
-        if request is None:
-            raise NotFound(message="Request not found", request_id=request_id)
+        discovery = app.discoveries_repository.get(discovery_id)
+        if discovery is None:
+            raise NotFound(message="Discovery not found", discovery_id=discovery_id)
     except NotFound as e:
         raise e
     except Exception as e:
         raise InternalServerError(
-            request_id=request_id,
-            message=f"Failed to load request {request_id}: {e}",
+            discovery_id=discovery_id,
+            message=f"Failed to load discovery {discovery_id}: {e}",
         )
 
-    if not request.configuration_path:
+    if not discovery.configuration_path:
         raise InternalServerError(
-            request_id=request_id,
-            request_status=request.status,
-            message=f"Request {request_id} has no configuration file",
+            discovery_id=discovery_id,
+            discovery_status=discovery.status,
+            message=f"Discovery {discovery_id} has no configuration file",
         )
 
-    file_path = Path(request.configuration_path)
+    file_path = Path(discovery.configuration_path)
     if not file_path.exists():
         raise NotFound(
-            request_id=request_id,
-            request_status=request.status,
+            discovery_id=discovery_id,
+            discovery_status=discovery.status,
             message=f"File not found: {file_path}",
         )
 
@@ -175,33 +175,33 @@ async def read_discovery_configuration(request_id: str) -> Response:
     )
 
 
-@api.get("/discoveries/{request_id}/{file_name}")
-async def read_discovery_file(request_id: str, file_name: str):
+@api.get("/discoveries/{discovery_id}/{file_name}")
+async def read_discovery_file(discovery_id: str, file_name: str):
     """
-    Get a file from a discovery request.
+    Get a file for the discovery.
     """
     try:
-        request = app.discoveries_repository.get(request_id)
-        if request is None:
-            raise NotFound(message="Request not found", request_id=request_id)
+        discovery = app.discoveries_repository.get(discovery_id)
+        if discovery is None:
+            raise NotFound(message="Discovery not found", discovery_id=discovery_id)
     except Exception as e:
         raise InternalServerError(
-            request_id=request_id,
-            message=f"Failed to load request {request_id}: {e}",
+            discovery_id=discovery_id,
+            message=f"Failed to load discovery {discovery_id}: {e}",
         )
 
-    if not request.output_dir:
+    if not discovery.output_dir:
         raise InternalServerError(
-            request_id=request_id,
-            request_status=request.status,
-            message=f"Request {request_id} has no output directory",
+            discovery_id=discovery_id,
+            discovery_status=discovery.status,
+            message=f"Discovery {discovery_id} has no output directory",
         )
 
-    file_path = Path(request.output_dir) / file_name
+    file_path = Path(discovery.output_dir) / file_name
     if not file_path.exists():
         raise NotFound(
-            request_id=request_id,
-            request_status=request.status,
+            discovery_id=discovery_id,
+            discovery_status=discovery.status,
             message=f"File not found: {file_name}",
         )
 
@@ -216,66 +216,66 @@ async def read_discovery_file(request_id: str, file_name: str):
     )
 
 
-@api.get("/discoveries/{request_id}")
-async def read_discovery(request_id: str) -> DiscoveryRequest:
+@api.get("/discoveries/{discovery_id}")
+async def read_discovery(discovery_id: str) -> Discovery:
     """
-    Get the status of the request.
+    Get the status of the discovery.
     """
     try:
-        request = app.discoveries_repository.get(request_id)
-        if request is None:
-            raise NotFound(message="Request not found", request_id=request_id)
+        discovery = app.discoveries_repository.get(discovery_id)
+        if discovery is None:
+            raise NotFound(message="Discovery not found", discovery_id=discovery_id)
     except Exception as e:
         raise InternalServerError(
-            request_id=request_id,
-            message=f"Failed to load request {request_id}: {e}",
+            discovery_id=discovery_id,
+            message=f"Failed to load discovery {discovery_id}: {e}",
         )
 
-    return request
+    return discovery
 
 
 # TODO: status should updated automatically by the background task
-@api.patch("/discoveries/{request_id}")
-async def patch_discovery(request_id: str, patch_request: PatchJobRequest) -> JSONResponse:
+@api.patch("/discoveries/{discovery_id}")
+async def patch_discovery(discovery_id: str, payload: PatchDiscoveryPayload) -> JSONResponse:
     """
-    Update the status of the request.
+    Update the status of the discovery.
     """
     try:
         archive_url = None
-        if patch_request.status == DiscoveryStatus.SUCCEEDED:
-            archive_url = make_results_url_for(request_id, patch_request.status, app.configuration.http)
+        if payload.status == DiscoveryStatus.SUCCEEDED:
+            archive_url = make_results_url_for(discovery_id, payload.status, app.configuration.http)
 
-        app.discoveries_repository.save_status(request_id, patch_request.status, archive_url)
+        app.discoveries_repository.save_status(discovery_id, payload.status, archive_url)
     except Exception as e:
         raise InternalServerError(
-            request_id=request_id,
-            message=f"Failed to update request {request_id}: {e}",
+            discovery_id=discovery_id,
+            message=f"Failed to update discovery {discovery_id}: {e}",
         )
 
     return AppResponse(
-        request_id=request_id,
-        request_status=patch_request.status,
+        discovery_id=discovery_id,
+        discovery_status=payload.status,
     ).json_response(status_code=200)
 
 
-@api.delete("/discoveries/{request_id}")
-async def delete_discovery(request_id: str) -> JSONResponse:
+@api.delete("/discoveries/{discovery_id}")
+async def delete_discovery(discovery_id: str) -> JSONResponse:
     try:
-        request = app.discoveries_repository.get(request_id)
-        if request is None:
-            raise NotFound(message="Request not found", request_id=request_id)
+        discovery = app.discoveries_repository.get(discovery_id)
+        if discovery is None:
+            raise NotFound(message="Discovery not found", discovery_id=discovery_id)
     except Exception as e:
         raise InternalServerError(
-            request_id=request_id,
-            message=f"Failed to load request {request_id}: {e}",
+            discovery_id=discovery_id,
+            message=f"Failed to load discovery {discovery_id}: {e}",
         )
 
-    request.status = DiscoveryStatus.DELETED
-    app.discoveries_repository.save_status(request_id, request.status)
+    discovery.status = DiscoveryStatus.DELETED
+    app.discoveries_repository.save_status(discovery_id, discovery.status)
 
     return AppResponse(
-        request_id=request_id,
-        request_status=DiscoveryStatus.DELETED,
+        discovery_id=discovery_id,
+        discovery_status=DiscoveryStatus.DELETED,
     ).json_response(status_code=200)
 
 
@@ -359,7 +359,7 @@ def _update_and_save_configuration(upload: UploadFile, event_log_path: Path, app
     replacement = f"log_path: {event_log_path.absolute()}\n"
     content = re.sub(regexp, replacement, content.decode("utf-8"))
 
-    # test log is not supported in request params
+    # test log is not supported in discovery params
     regexp = r"test_log_path: .*\n"
     replacement = "test_log_path: None\n"
     content = re.sub(regexp, replacement, content)
@@ -371,32 +371,32 @@ def _update_and_save_configuration(upload: UploadFile, event_log_path: Path, app
     return new_file_path
 
 
-def _process_post_request(request: DiscoveryRequest, app: Application):
+def _process_post_discovery(discovery: Discovery, app: Application):
     app.logger.info(
-        f"Processing request {request.get_id()}: "
-        f"status={request.status}, "
-        f"configuration_path={request.configuration_path}"
+        f"Processing discovery {discovery.get_id()}: "
+        f"status={discovery.status}, "
+        f"configuration_path={discovery.configuration_path}"
     )
 
     try:
-        app.broker_client.publish_request(request)
-        request.status = DiscoveryStatus.PENDING
-        app.discoveries_repository.save(request)
+        app.broker_client.publish_discovery(discovery)
+        discovery.status = DiscoveryStatus.PENDING
+        app.discoveries_repository.save(discovery)
     except Exception as e:
-        request.status = DiscoveryStatus.FAILED
-        app.discoveries_repository.save(request)
+        discovery.status = DiscoveryStatus.FAILED
+        app.discoveries_repository.save(discovery)
         app.logger.error(e)
         raise e
 
-    app.logger.info(f"Processed request {request.get_id()}, {request.status}")
+    app.logger.info(f"Processed discovery {discovery.get_id()}, {discovery.status}")
 
 
-def _save_event_log(event_log: UploadFile, request: DiscoveryRequest):
+def _save_event_log(event_log: UploadFile, discovery: Discovery):
     event_log_file_extension = _infer_event_log_file_extension_from_header(event_log.content_type)
     if event_log_file_extension is None:
         raise UnsupportedMediaType(message="Unsupported event log file type")
 
-    event_log_path = Path(request.output_dir) / f"event_log{event_log_file_extension}"
+    event_log_path = Path(discovery.output_dir) / f"event_log{event_log_file_extension}"
     event_log_path.write_bytes(event_log.file.read())
 
     return event_log_path
@@ -411,17 +411,17 @@ def _infer_event_log_file_extension_from_header(content_type: str) -> Union[str,
         return None
 
 
-def _remove_fs_directories(requests: List[DiscoveryRequest]):
-    for request in requests:
-        if request.output_dir:
-            output_dir = Path(request.output_dir)
+def _remove_fs_directories(discoveries: List[Discovery]):
+    for discovery in discoveries:
+        if discovery.output_dir:
+            output_dir = Path(discovery.output_dir)
             if output_dir.exists():
                 shutil.rmtree(output_dir)
 
 
 @api.exception_handler(HTTPException)
-async def request_exception_handler(_, exc: HTTPException) -> JSONResponse:
-    app.logger.exception(f"Request exception occurred: {exc}")
+async def http_exception_handler(_, exc: HTTPException) -> JSONResponse:
+    app.logger.exception(f"HTTP exception occurred: {exc}")
     return JSONResponse(
         status_code=exc.status_code,
         content={

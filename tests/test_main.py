@@ -11,7 +11,7 @@ from starlette.testclient import TestClient
 from simod_http.broker_client import BrokerClient
 from simod_http.exceptions import NotFound
 from simod_http.main import api
-from simod_http.discoveries import DiscoveryStatus, DiscoveryRequest
+from simod_http.discoveries import DiscoveryStatus, Discovery
 from simod_http.discoveries_repository import DiscoveriesRepositoryInterface
 from simod_http.discoveries_repository_mongo import MongoDiscoveriesRepository
 
@@ -26,20 +26,20 @@ def stub_broker_client() -> BrokerClient:
     connection = MagicMock(spec=BlockingConnection)
     connection.channel.return_value = channel
     client = BrokerClient("", "", "", connection=connection)
-    client.basic_publish_request = MagicMock()
-    client.publish_request = MagicMock()
+    client.basic_publish_discovery = MagicMock()
+    client.publish_discovery = MagicMock()
     client.connect = MagicMock()
     return client
 
 
-def inject_requests_repository(api: FastAPI, repository: DiscoveriesRepositoryInterface) -> FastAPI:
+def inject_discoveries_repository(api: FastAPI, repository: DiscoveriesRepositoryInterface) -> FastAPI:
     api.state.app.job_requests_repository = repository
     return api
 
 
-def stub_requests_repository_failing() -> MongoDiscoveriesRepository:
+def stub_discoveries_repository_failing() -> MongoDiscoveriesRepository:
     repository = MongoDiscoveriesRepository(mongo_client=MagicMock(), database="simod", collection="requests")
-    repository.get = MagicMock(side_effect=NotFound(message="Request not found", request_id="123"))
+    repository.get = MagicMock(side_effect=NotFound(message="Discovery not found", discovery_id="123"))
     repository.save = MagicMock()
     return repository
 
@@ -76,7 +76,7 @@ class TestAPI:
 
         assert response.status_code == 404
         assert response.json() == {
-            "request_id": "123",
+            "discovery_id": "123",
             "error": "Request not found",
         }
 
@@ -102,7 +102,7 @@ class TestAPI:
         response = self.post_discovery(client)
 
         assert response.status_code == 202
-        assert "request_id" in response.json()
+        assert "discovery_id" in response.json()
 
     def test_discoveries_file(self):
         client = self.make_client()
@@ -114,8 +114,8 @@ class TestAPI:
         assert response.status_code == 404
         assert response.json() == {
             "error": f"File not found: {archive_file}",
-            "request_id": request_id,
-            "request_status": "pending",
+            "discovery_id": request_id,
+            "discovery_status": "pending",
         }
 
     def test_discoveries_status_patch(self):
@@ -126,8 +126,8 @@ class TestAPI:
 
         assert response.status_code == 200
         assert response.json() == {
-            "request_id": request_id,
-            "request_status": DiscoveryStatus.RUNNING.value,
+            "discovery_id": request_id,
+            "discovery_status": DiscoveryStatus.RUNNING.value,
         }
 
     def test_discoveries_delete(self):
@@ -138,13 +138,13 @@ class TestAPI:
 
         assert response.status_code == 200
         assert response.json() == {
-            "request_id": request_id,
-            "request_status": DiscoveryStatus.DELETED.value,
+            "discovery_id": request_id,
+            "discovery_status": DiscoveryStatus.DELETED.value,
         }
 
     @staticmethod
     def make_failing_client() -> TestClient:
-        inject_requests_repository(api, stub_requests_repository_failing())
+        inject_discoveries_repository(api, stub_discoveries_repository_failing())
         inject_broker_client(api, stub_broker_client())
         return TestClient(api)
 
@@ -152,7 +152,7 @@ class TestAPI:
     def make_client(status: Optional[DiscoveryStatus] = DiscoveryStatus.PENDING) -> TestClient:
         repository = MongoDiscoveriesRepository(mongo_client=MagicMock(), database="simod", collection="requests")
         repository.get = MagicMock(
-            return_value=DiscoveryRequest(
+            return_value=Discovery(
                 _id="123",
                 status=status,
                 configuration_path="configuration.yaml",
@@ -161,7 +161,7 @@ class TestAPI:
         )
         repository.save = MagicMock()
         repository.save_status = MagicMock()
-        inject_requests_repository(api, repository)
+        inject_discoveries_repository(api, repository)
 
         inject_broker_client(api, stub_broker_client())
 

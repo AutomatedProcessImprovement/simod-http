@@ -44,7 +44,7 @@ jobs:
       - name: Test
         run: poetry run pytest
         env:
-          SIMOD_FAKE_REQUESTS_REPOSITORY: true
+          SIMOD_FAKE_DISCOVERIES_REPOSITORY: true
 
       - name: Assign a version tag
         run: |

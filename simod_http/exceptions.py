@@ -9,24 +9,24 @@ from simod_http.responses import Response
 class BaseRequestException(Exception):
     _status_code = 500
 
-    request_id = None
-    request_status = None
+    discovery_id = None
+    discovery_status = None
     archive_url = None
     message = "Internal server error"
 
     def __init__(
         self,
-        request_id: Union[str, None] = None,
+        discovery_id: Union[str, None] = None,
         message: Union[str, None] = None,
-        request_status: Union[DiscoveryStatus, None] = None,
+        discovery_status: Union[DiscoveryStatus, None] = None,
         archive_url: Union[str, None] = None,
     ):
-        if request_id is not None:
-            self.request_id = request_id
+        if discovery_id is not None:
+            self.discovery_id = discovery_id
         if message is not None:
             self.message = message
-        if request_status is not None:
-            self.request_status = request_status
+        if discovery_status is not None:
+            self.discovery_status = discovery_status
         if archive_url is not None:
             self.archive_url = archive_url
 
@@ -36,8 +36,8 @@ class BaseRequestException(Exception):
 
     def make_response(self) -> Response:
         return Response(
-            request_id=self.request_id,
-            request_status=self.request_status,
+            discovery_id=self.discovery_id,
+            discovery_status=self.discovery_status,
             archive_url=self.archive_url,
             error=self.message,
         )
