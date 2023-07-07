@@ -1,23 +1,20 @@
 import logging
-import os
-from pathlib import Path
+from dataclasses import dataclass
 from typing import Union, Optional
 
-from fastapi import FastAPI
-from pydantic import BaseModel, BaseSettings
 from pymongo import MongoClient
 
 from simod_http.broker_client import BrokerClient, make_broker_client
 from simod_http.configurations import HttpConfiguration, ApplicationConfiguration
-from simod_http.exceptions import NotFound, InternalServerError
-from simod_http.files_repository import FilesRepositoryInterface
-from simod_http.files_repository_fs import FileSystemFilesRepository
-from simod_http.discoveries import DiscoveryStatus, DiscoveryRequest
+from simod_http.discoveries import DiscoveryStatus
 from simod_http.discoveries_repository import DiscoveriesRepositoryInterface
 from simod_http.discoveries_repository_mongo import make_mongo_job_requests_repository
+from simod_http.files_repository import FilesRepositoryInterface
+from simod_http.files_repository_fs import FileSystemFilesRepository
 
 
-class PatchJobRequest(BaseModel):
+@dataclass
+class PatchJobRequest:
     status: DiscoveryStatus
 
 
@@ -36,13 +33,17 @@ class Application:
     logger = logging.getLogger("simod_http.application")
 
     # Initialization of the fields below happens only once, when a property is accessed for the first time
-    _files_repository: FilesRepositoryInterface
-    _discoveries_repository: DiscoveriesRepositoryInterface
-    _broker_client: BrokerClient
-    _mongo_client: MongoClient
+    _files_repository: Optional[FilesRepositoryInterface]
+    _discoveries_repository: Optional[DiscoveriesRepositoryInterface]
+    _broker_client: Optional[BrokerClient]
+    _mongo_client: Optional[MongoClient]
 
     def __init__(self, configuration: ApplicationConfiguration):
         self.configuration = configuration
+        self._files_repository = None
+        self._discoveries_repository = None
+        self._broker_client = None
+        self._mongo_client = None
 
     @property
     def broker_client(self) -> BrokerClient:
@@ -73,7 +74,7 @@ class Application:
         if self._discoveries_repository is None:
             self._discoveries_repository = make_mongo_job_requests_repository(
                 self.mongo_client,
-                self.configuration.mongo.database_name,
+                self.configuration.mongo.database,
                 self.configuration.mongo.discoveries_collection,
             )
         return self._discoveries_repository
@@ -83,3 +84,9 @@ class Application:
             self._broker_client.close()
         if self._mongo_client is not None:
             self._mongo_client.close()
+
+
+def make_app() -> Application:
+    configuration = ApplicationConfiguration()
+    app = Application(configuration)
+    return app

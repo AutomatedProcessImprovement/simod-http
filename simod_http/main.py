@@ -1,40 +1,60 @@
 import logging
 import re
 import shutil
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Union, Optional, List, Annotated
+from typing import Union, Optional, List
 
-from fastapi import Response, Form, Depends, FastAPI
+from fastapi import Response, Form, FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.background import BackgroundTasks
 from starlette.datastructures import UploadFile
 from starlette.exceptions import HTTPException
-from uvicorn.config import LOGGING_CONFIG
 
-from configurations import ApplicationConfiguration
-from simod_http.app import Application, make_results_url_for
-from simod_http.app import PatchJobRequest
+from simod_http.configurations import LoggingConfiguration
+from simod_http.app import PatchJobRequest, make_app, Application
+from simod_http.app import make_results_url_for
 from simod_http.discoveries import DiscoveryRequest, DiscoveryStatus, NotificationMethod, NotificationSettings
 from simod_http.exceptions import NotFound, BadMultipartRequest, UnsupportedMediaType, InternalServerError, NotSupported
 from simod_http.responses import Response as AppResponse
 
-api = FastAPI()
+app = make_app()
 
 
-async def make_app(configuration: Depends(ApplicationConfiguration)) -> Application:
-    logging_config = LOGGING_CONFIG
-    logging_config["formatters"]["default"]["fmt"] = configuration.logging.format
-    logging_config["formatters"]["access"]["fmt"] = configuration.logging.format.replace(
-        "%(message)s", '%(client_addr)s - "%(request_line)s" %(status_code)s'
-    )
+def set_up_logging(config: LoggingConfiguration):
+    logging_handlers = []
+    if config.path is not None:
+        logging_handlers.append(logging.FileHandler(config.path, mode="w"))
 
-    app = Application(configuration)
-    yield app
-    await app.close()
+    if len(logging_handlers) > 0:
+        logging.basicConfig(
+            level=config.level.upper(),
+            handlers=logging_handlers,
+            format=config.format,
+        )
+    else:
+        logging.basicConfig(
+            level=config.level.upper(),
+            format=config.format,
+        )
 
 
-Application_ = Annotated[Application, Depends(make_app)]
+@asynccontextmanager
+async def lifespan(_api: FastAPI):
+    set_up_logging(app.configuration.logging)
+
+    if app.configuration.debug:
+        app.logger.debug("Debug mode is on")
+        app.logger.debug(f"Configuration: {app.configuration}")
+    else:
+        app.logger.info("Debug mode is off")
+
+    yield
+    app.close()
+
+
+api = FastAPI(lifespan=lifespan)
 
 
 # Routes: /
@@ -50,7 +70,6 @@ async def root() -> JSONResponse:
 
 @api.post("/discoveries")
 async def create_discovery(
-    app: Application_,
     background_tasks: BackgroundTasks,
     configuration=Form(),
     event_log=Form(),
@@ -84,7 +103,7 @@ async def create_discovery(
 
 
 @api.get("/discoveries")
-async def read_discoveries(app: Application_) -> JSONResponse:
+async def read_discoveries() -> JSONResponse:
     """
     Get all business process simulation model discovery requests.
     """
@@ -94,7 +113,7 @@ async def read_discoveries(app: Application_) -> JSONResponse:
 
 
 @api.delete("/discoveries")
-async def delete_discoveries(app: Application_) -> JSONResponse:
+async def delete_discoveries() -> JSONResponse:
     """
     Delete all business process simulation model discovery requests.
     """
@@ -114,7 +133,7 @@ async def delete_discoveries(app: Application_) -> JSONResponse:
 
 
 @api.get("/discoveries/{request_id}/configuration")
-async def read_discovery_configuration(request_id: str, app: Application_) -> Response:
+async def read_discovery_configuration(request_id: str) -> Response:
     """
     Get the configuration of the request.
     """
@@ -157,7 +176,7 @@ async def read_discovery_configuration(request_id: str, app: Application_) -> Re
 
 
 @api.get("/discoveries/{request_id}/{file_name}")
-async def read_discovery_file(request_id: str, file_name: str, app: Application_):
+async def read_discovery_file(request_id: str, file_name: str):
     """
     Get a file from a discovery request.
     """
@@ -198,7 +217,7 @@ async def read_discovery_file(request_id: str, file_name: str, app: Application_
 
 
 @api.get("/discoveries/{request_id}")
-async def read_discovery(request_id: str, app: Application_) -> DiscoveryRequest:
+async def read_discovery(request_id: str) -> DiscoveryRequest:
     """
     Get the status of the request.
     """
@@ -217,7 +236,7 @@ async def read_discovery(request_id: str, app: Application_) -> DiscoveryRequest
 
 # TODO: status should updated automatically by the background task
 @api.patch("/discoveries/{request_id}")
-async def patch_discovery(request_id: str, patch_request: PatchJobRequest, app: Application_) -> JSONResponse:
+async def patch_discovery(request_id: str, patch_request: PatchJobRequest) -> JSONResponse:
     """
     Update the status of the request.
     """
@@ -240,7 +259,7 @@ async def patch_discovery(request_id: str, patch_request: PatchJobRequest, app: 
 
 
 @api.delete("/discoveries/{request_id}")
-async def delete_discovery(request_id: str, app: Application_) -> JSONResponse:
+async def delete_discovery(request_id: str) -> JSONResponse:
     try:
         request = app.discoveries_repository.get(request_id)
         if request is None:
@@ -317,7 +336,7 @@ def _notification_settings_from_params(
     return notification_settings
 
 
-def _save_uploaded_event_log(upload: UploadFile, app: Application_) -> Path:
+def _save_uploaded_event_log(upload: UploadFile, app: Application) -> Path:
     event_log_file_extension = _infer_event_log_file_extension_from_header(upload.content_type)
     if event_log_file_extension is None:
         raise UnsupportedMediaType(message="Unsupported event log file type")
@@ -332,7 +351,7 @@ def _save_uploaded_event_log(upload: UploadFile, app: Application_) -> Path:
     return app.files_repository.file_path(event_log_file.file_name)
 
 
-def _update_and_save_configuration(upload: UploadFile, event_log_path: Path, app: Application_):
+def _update_and_save_configuration(upload: UploadFile, event_log_path: Path, app: Application):
     content = upload.file.read()
     upload.file.close()
 
@@ -352,7 +371,7 @@ def _update_and_save_configuration(upload: UploadFile, event_log_path: Path, app
     return new_file_path
 
 
-def _process_post_request(request: DiscoveryRequest, app: Application_):
+def _process_post_request(request: DiscoveryRequest, app: Application):
     app.logger.info(
         f"Processing request {request.get_id()}: "
         f"status={request.status}, "
@@ -400,27 +419,8 @@ def _remove_fs_directories(requests: List[DiscoveryRequest]):
                 shutil.rmtree(output_dir)
 
 
-@api.on_event("startup")
-async def application_startup(app: Application_):
-    logging_handlers = []
-    if app.configuration.logging.path is not None:
-        logging_handlers.append(logging.FileHandler(app.configuration.logging.path, mode="w"))
-
-    if len(logging_handlers) > 0:
-        logging.basicConfig(
-            level=app.configuration.logging.level.upper(),
-            handlers=logging_handlers,
-            format=app.configuration.logging.format,
-        )
-    else:
-        logging.basicConfig(
-            level=app.configuration.logging.level.upper(),
-            format=app.configuration.logging.format,
-        )
-
-
 @api.exception_handler(HTTPException)
-async def request_exception_handler(_, exc: HTTPException, app: Application_) -> JSONResponse:
+async def request_exception_handler(_, exc: HTTPException) -> JSONResponse:
     app.logger.exception(f"Request exception occurred: {exc}")
     return JSONResponse(
         status_code=exc.status_code,
@@ -431,7 +431,7 @@ async def request_exception_handler(_, exc: HTTPException, app: Application_) ->
 
 
 @api.exception_handler(RequestValidationError)
-async def validation_exception_handler(_, exc: RequestValidationError, app: Application_) -> JSONResponse:
+async def validation_exception_handler(_, exc: RequestValidationError) -> JSONResponse:
     app.logger.exception(f"Validation exception occurred: {exc}")
     return JSONResponse(
         status_code=422,
@@ -447,31 +447,31 @@ async def not_found_exception_handler(_, exc: NotFound) -> JSONResponse:
 
 
 @api.exception_handler(BadMultipartRequest)
-async def bad_multipart_exception_handler(_, exc: BadMultipartRequest, app: Application_) -> JSONResponse:
+async def bad_multipart_exception_handler(_, exc: BadMultipartRequest) -> JSONResponse:
     app.logger.exception(f"Bad multipart exception occurred: {exc}")
     return exc.json_response()
 
 
 @api.exception_handler(UnsupportedMediaType)
-async def bad_multipart_exception_handler(_, exc: UnsupportedMediaType, app: Application_) -> JSONResponse:
+async def bad_multipart_exception_handler(_, exc: UnsupportedMediaType) -> JSONResponse:
     app.logger.exception(f"Unsupported media type exception occurred: {exc}")
     return exc.json_response()
 
 
 @api.exception_handler(InternalServerError)
-async def bad_multipart_exception_handler(_, exc: InternalServerError, app: Application_) -> JSONResponse:
+async def bad_multipart_exception_handler(_, exc: InternalServerError) -> JSONResponse:
     app.logger.exception(f"Internal server error exception occurred: {exc}")
     return exc.json_response()
 
 
 @api.exception_handler(NotSupported)
-async def bad_multipart_exception_handler(_, exc: NotSupported, app: Application_) -> JSONResponse:
+async def bad_multipart_exception_handler(_, exc: NotSupported) -> JSONResponse:
     app.logger.exception(f"Not supported exception occurred: {exc}")
     return exc.json_response()
 
 
 @api.exception_handler(Exception)
-async def exception_handler(_, exc: Exception, app: Application_) -> JSONResponse:
+async def exception_handler(_, exc: Exception) -> JSONResponse:
     app.logger.exception(f"Exception occurred: {exc}")
     return JSONResponse(
         status_code=500,

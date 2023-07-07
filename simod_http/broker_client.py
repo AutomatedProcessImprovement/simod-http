@@ -8,7 +8,7 @@ import pika
 import pika.exceptions
 from pika.spec import PERSISTENT_DELIVERY_MODE
 
-from exceptions import InternalServerError
+from simod_http.exceptions import InternalServerError
 from simod_http.discoveries import DiscoveryRequest
 
 

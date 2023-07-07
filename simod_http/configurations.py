@@ -62,24 +62,11 @@ class BrokerConfiguration:
 
 @dataclass
 class MongoConfiguration:
-    url: MongoDsn = "mongodb://localhost:27017/simod"
+    url: MongoDsn = "mongodb://localhost:27017"
+    database: str = "simod"
     discoveries_collection: str = "discoveries"
 
     _database_name: Optional[str] = None
-
-    # TODO: database name can be taken from the URL
-    # database: str = "simod"
-
-    # # TODO: remove credentials from the configuration
-    # username: str = "root"
-    # password: str = "example"
-
-    def __post_init__(self):
-        self._database_name = self.url.split("/")[-1]
-
-    @property
-    def database_name(self) -> str:
-        return self._database_name
 
 
 class ApplicationConfiguration:
@@ -121,5 +108,6 @@ class ApplicationConfiguration:
 
         self.mongo = MongoConfiguration(
             url=os.environ.get("SIMOD_MONGO_URL", "mongodb://localhost:27017/"),
-            discoveries_collection=os.environ.get("SIMOD_MONGO_COLLECTION", "requests"),
+            database=os.environ.get("SIMOD_MONGO_DATABASE", "simod"),
+            discoveries_collection=os.environ.get("SIMOD_MONGO_COLLECTION", "discoveries"),
         )
