@@ -9,7 +9,9 @@ from starlette.exceptions import HTTPException
 from simod_http.app import make_simod_app
 from simod_http.configurations import LoggingConfiguration
 from simod_http.exceptions import NotFound, BadMultipartRequest, UnsupportedMediaType, InternalServerError, NotSupported
-from simod_http.router import router
+from simod_http.routes.discoveries import router as discoveries_router
+from simod_http.routes.discovery import router as discovery_router
+from simod_http.routes.index import router as index_router
 
 
 @asynccontextmanager
@@ -113,17 +115,11 @@ def make_fastapi_app() -> FastAPI:
 
     # Routing
 
-    api.include_router(router, prefix="/v1")
+    api.include_router(index_router)
+    api.include_router(discoveries_router, prefix="/v1")
+    api.include_router(discovery_router, prefix="/v1")
 
     return api
 
 
 api = make_fastapi_app()
-
-
-# Default root handler
-
-
-@api.get("/")
-async def root() -> JSONResponse:
-    raise NotFound()
