@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import time
 from typing import Union
 
@@ -8,8 +7,8 @@ import pika
 import pika.exceptions
 from pika.spec import PERSISTENT_DELIVERY_MODE
 
-from simod_http.exceptions import InternalServerError
 from simod_http.discoveries.model import Discovery
+from simod_http.exceptions import InternalServerError
 
 
 class BrokerClient:
@@ -99,14 +98,8 @@ class BrokerClient:
 
 
 def make_broker_client(broker_url: str, exchange_name: str, routing_key: str) -> BrokerClient:
-    fake_broker_client = os.environ.get("SIMOD_FAKE_BROKER_CLIENT", "false").lower() == "true"
-    if fake_broker_client:
-        from simod_http.broker_client_stub import stub_broker_client
-
-        return stub_broker_client()
-    else:
-        return BrokerClient(
-            broker_url=broker_url,
-            exchange_name=exchange_name,
-            routing_key=routing_key,
-        )
+    return BrokerClient(
+        broker_url=broker_url,
+        exchange_name=exchange_name,
+        routing_key=routing_key,
+    )
