@@ -111,11 +111,14 @@ def make_fastapi_app() -> FastAPI:
             },
         )
 
+    # Routing
+
+    api.include_router(router, prefix="/v1")
+
     return api
 
 
 api = make_fastapi_app()
-api.include_router(router, prefix="/v1")
 
 
 # Default root handler

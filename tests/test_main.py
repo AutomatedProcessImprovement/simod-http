@@ -15,11 +15,10 @@ from simod_http.discoveries_repository import DiscoveriesRepositoryInterface
 from simod_http.discoveries_repository_mongo import MongoDiscoveriesRepository
 from simod_http.exceptions import NotFound
 from simod_http.main import make_fastapi_app
-from simod_http.router import router, DeleteDiscoveriesResponse
+from simod_http.router import DeleteDiscoveriesResponse
 
 api = make_fastapi_app()
 api.state.app = make_simod_app()
-api.include_router(router, prefix="/v1")
 
 
 def inject_broker_client(api: FastAPI, client: BrokerClient) -> FastAPI:
