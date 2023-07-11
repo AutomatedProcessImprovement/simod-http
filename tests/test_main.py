@@ -8,14 +8,15 @@ from pika import BlockingConnection
 from requests_toolbelt import MultipartEncoder
 from starlette.testclient import TestClient
 
-from app import make_app
+from simod_http.app import make_app
 from simod_http.broker_client import BrokerClient
 from simod_http.discoveries import DiscoveryStatus, Discovery
 from simod_http.discoveries_repository import DiscoveriesRepositoryInterface
 from simod_http.discoveries_repository_mongo import MongoDiscoveriesRepository
 from simod_http.exceptions import NotFound
 
-api = make_app()
+api = FastAPI()
+api.state.app = make_app()
 
 
 def inject_broker_client(api: FastAPI, client: BrokerClient) -> FastAPI:

@@ -9,9 +9,10 @@ from starlette import status
 from starlette.background import BackgroundTasks
 from starlette.datastructures import UploadFile
 from starlette.requests import Request
+from starlette.responses import FileResponse
 
-from simod_http.configurations import HttpConfiguration
 from simod_http.app import Application
+from simod_http.configurations import HttpConfiguration
 from simod_http.discoveries import Discovery, DiscoveryStatus, NotificationMethod, NotificationSettings
 from simod_http.exceptions import NotFound, UnsupportedMediaType, InternalServerError, NotSupported
 
@@ -94,7 +95,7 @@ async def delete_discoveries(request: Request) -> DeleteDiscoveriesResponse:
 
 
 @router.get("/{discovery_id}/configuration")
-async def read_discovery_configuration(request: Request, discovery_id: str) -> Response:
+async def read_discovery_configuration(request: Request, discovery_id: str) -> FileResponse:
     """
     Get the configuration of the discovery.
     """
@@ -119,8 +120,8 @@ async def read_discovery_configuration(request: Request, discovery_id: str) -> R
 
     media_type = _infer_media_type_from_extension(file_path.name)
 
-    return Response(
-        content=file_path.read_bytes(),
+    return FileResponse(
+        path=file_path,
         media_type=media_type,
         headers={
             "Content-Disposition": f'attachment; filename="{file_path.name}"',
