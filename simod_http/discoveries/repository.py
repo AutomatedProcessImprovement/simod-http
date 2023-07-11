@@ -2,7 +2,7 @@ from abc import abstractmethod, ABCMeta
 from pathlib import Path
 from typing import Optional, List
 
-from simod_http.discoveries import Discovery
+from simod_http.discoveries.model import Discovery
 
 
 class DiscoveriesRepositoryInterface(metaclass=ABCMeta):

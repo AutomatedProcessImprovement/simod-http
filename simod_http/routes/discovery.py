@@ -8,7 +8,7 @@ from starlette.responses import FileResponse, Response
 
 from simod_http.app import Application
 from simod_http.configurations import HttpConfiguration
-from simod_http.discoveries import Discovery, DiscoveryStatus
+from simod_http.discoveries.model import Discovery, DiscoveryStatus
 from simod_http.exceptions import InternalServerError, NotFound
 
 router = APIRouter(prefix="/discoveries")

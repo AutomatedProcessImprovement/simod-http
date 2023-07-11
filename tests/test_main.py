@@ -10,9 +10,9 @@ from starlette.testclient import TestClient
 
 from simod_http.app import make_simod_app
 from simod_http.broker_client import BrokerClient
-from simod_http.discoveries import DiscoveryStatus, Discovery
-from simod_http.discoveries_repository import DiscoveriesRepositoryInterface
-from simod_http.discoveries_repository_mongo import MongoDiscoveriesRepository
+from simod_http.discoveries.model import DiscoveryStatus, Discovery
+from simod_http.discoveries.repository_mongo import DiscoveriesRepositoryInterface
+from simod_http.discoveries.repository_mongo import MongoDiscoveriesRepository
 from simod_http.exceptions import NotFound
 from simod_http.main import make_fastapi_app
 from simod_http.routes.discoveries import DeleteDiscoveriesResponse

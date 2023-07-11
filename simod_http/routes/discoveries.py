@@ -11,7 +11,7 @@ from starlette.datastructures import UploadFile
 from starlette.requests import Request
 
 from simod_http.app import Application
-from simod_http.discoveries import Discovery, DiscoveryStatus, NotificationMethod, NotificationSettings
+from simod_http.discoveries.model import Discovery, DiscoveryStatus, NotificationMethod, NotificationSettings
 from simod_http.exceptions import UnsupportedMediaType, InternalServerError, NotSupported
 
 router = APIRouter(prefix="/discoveries")

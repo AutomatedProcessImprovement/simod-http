@@ -1,16 +1,9 @@
 import hashlib
 from abc import abstractmethod, ABCMeta
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-
-@dataclass
-class File:
-    file_name: str
-    content: bytes
-    sha256: str
-    _id: Optional[str] = None
+from simod_http.files.model import File
 
 
 class FilesRepositoryInterface(metaclass=ABCMeta):

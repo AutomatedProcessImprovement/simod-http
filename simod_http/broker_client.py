@@ -9,7 +9,7 @@ import pika.exceptions
 from pika.spec import PERSISTENT_DELIVERY_MODE
 
 from simod_http.exceptions import InternalServerError
-from simod_http.discoveries import Discovery
+from simod_http.discoveries.model import Discovery
 
 
 class BrokerClient:

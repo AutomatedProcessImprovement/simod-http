@@ -1,7 +1,8 @@
 from pathlib import Path
 from typing import Optional
 
-from simod_http.files_repository import FilesRepositoryInterface, File, compute_sha256
+from simod_http.files.repository import FilesRepositoryInterface, compute_sha256
+from simod_http.files.model import File
 
 
 class FileSystemFilesRepository(FilesRepositoryInterface):

@@ -8,8 +8,8 @@ import pymongo
 from bson import ObjectId
 from pymongo import MongoClient
 
-from simod_http.discoveries import Discovery, DiscoveryStatus
-from simod_http.discoveries_repository import DiscoveriesRepositoryInterface
+from simod_http.discoveries.model import Discovery, DiscoveryStatus
+from simod_http.discoveries.repository import DiscoveriesRepositoryInterface
 
 
 class MongoDiscoveriesRepository(DiscoveriesRepositoryInterface):

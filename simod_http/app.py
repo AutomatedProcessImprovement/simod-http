@@ -5,10 +5,10 @@ from pymongo import MongoClient
 
 from simod_http.broker_client import BrokerClient, make_broker_client
 from simod_http.configurations import ApplicationConfiguration
-from simod_http.discoveries_repository import DiscoveriesRepositoryInterface
-from simod_http.discoveries_repository_mongo import make_mongo_discoveries_repository
-from simod_http.files_repository import FilesRepositoryInterface
-from simod_http.files_repository_fs import FileSystemFilesRepository
+from simod_http.discoveries.repository import DiscoveriesRepositoryInterface
+from simod_http.discoveries.repository_mongo import make_mongo_discoveries_repository
+from simod_http.files.repository import FilesRepositoryInterface
+from simod_http.files.repository_fs import FileSystemFilesRepository
 
 
 class Application:

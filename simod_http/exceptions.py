@@ -2,7 +2,7 @@ from typing import Union
 
 from starlette.responses import JSONResponse
 
-from simod_http.discoveries import DiscoveryStatus
+from simod_http.discoveries.model import DiscoveryStatus
 
 
 class BaseRequestException(Exception):
