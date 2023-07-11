@@ -43,8 +43,17 @@ jobs:
 
       - name: Test
         run: poetry run pytest
-        env:
-          SIMOD_FAKE_DISCOVERIES_REPOSITORY: true
+
+      - name: Generate requirements.txt
+        run: poetry export -f requirements.txt --output requirements.txt --without-hashes
+
+      - name: Commit requirements.txt
+        run: |
+          git config --local user.email "ihar.suvorau@gmail.com"
+          git config --local user.name "Ihar Suvorau"
+          git add requirements.txt
+          git commit -m "Update requirements.txt"
+          git push
 
       - name: Assign a version tag
         run: |

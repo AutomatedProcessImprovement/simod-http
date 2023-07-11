@@ -13,8 +13,7 @@ services:
       - 8000:8000
     environment:
       - SIMOD_DEBUG=true
-      - SIMOD_GUNICORN_WORKERS=1
-      - SIMOD_HTTP_ADDRESS=0.0.0.0:8000
+      - WEB_CONCURRENCY=4
       - SIMOD_HTTP_HOST=0.0.0.0
       - SIMOD_HTTP_PORT=8000
       - SIMOD_HTTP_SCHEME=http
