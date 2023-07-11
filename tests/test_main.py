@@ -8,15 +8,18 @@ from pika import BlockingConnection
 from requests_toolbelt import MultipartEncoder
 from starlette.testclient import TestClient
 
-from simod_http.app import make_app
+from simod_http.app import make_simod_app
 from simod_http.broker_client import BrokerClient
 from simod_http.discoveries import DiscoveryStatus, Discovery
 from simod_http.discoveries_repository import DiscoveriesRepositoryInterface
 from simod_http.discoveries_repository_mongo import MongoDiscoveriesRepository
 from simod_http.exceptions import NotFound
+from simod_http.main import make_fastapi_app
+from simod_http.router import router, DeleteDiscoveriesResponse
 
-api = FastAPI()
-api.state.app = make_app()
+api = make_fastapi_app()
+api.state.app = make_simod_app()
+api.include_router(router, prefix="/v1")
 
 
 def inject_broker_client(api: FastAPI, client: BrokerClient) -> FastAPI:
@@ -44,6 +47,7 @@ def stub_discoveries_repository_failing() -> MongoDiscoveriesRepository:
     repository = MongoDiscoveriesRepository(mongo_client=MagicMock(), database="simod", collection="discoveries")
     repository.get = MagicMock(side_effect=NotFound(message="Discovery not found", discovery_id="123"))
     repository.save = MagicMock()
+    repository.delete = MagicMock(side_effect=DeleteDiscoveriesResponse(deleted_amount=1))
     return repository
 
 
@@ -58,45 +62,40 @@ class TestAPI:
         response = client.get("/")
 
         assert response.status_code == 404
-        assert response.json() == {
-            "error": "Not Found",
-        }
+        assert response.json() == {"error": {"message": "Not Found"}}
 
     def test_catch_all_route(self):
         client = self.make_failing_client()
 
-        response = client.get("/foo")
+        response = client.get("/v1/foo")
 
         assert response.status_code == 404
-        assert response.json() == {
-            "error": "Not Found",
-        }
+        assert response.json() == {"error": {"message": "Not Found"}}
 
     def test_discoveries_get(self):
         client = self.make_failing_client()
 
-        response = client.get("/discoveries/123")
+        response = client.get("/v1/discoveries/123")
 
         assert response.status_code == 404
-        assert response.json() == {
-            "discovery_id": "123",
-            "error": "Discovery not found",
-        }
+        assert response.json() == {"error": {"discovery_id": "123", "message": "Discovery not found"}}
 
     def test_discoveries_patch(self):
         client = self.make_failing_client()
 
-        response = client.patch("/discoveries/123")
+        response = client.patch("/v1/discoveries/123")
 
         assert response.status_code == 422
         assert response.json() == {
-            "error": [
-                {
-                    "loc": ["body"],
-                    "msg": "field required",
-                    "type": "value_error.missing",
-                }
-            ]
+            "error": {
+                "message": [
+                    {
+                        "loc": ["body"],
+                        "msg": "field required",
+                        "type": "value_error.missing",
+                    }
+                ]
+            }
         }
 
     def test_discoveries_post(self):
@@ -105,44 +104,54 @@ class TestAPI:
         response = self.post_discovery(client)
 
         assert response.status_code == 202
-        assert "discovery_id" in response.json()
+        assert "id" in response.json()
 
     def test_discoveries_file(self):
         client = self.make_client()
         request_id = "123"
 
         archive_file = f"{request_id}.tar.gz"
-        response = client.get(f"/discoveries/{request_id}/{archive_file}")
+        response = client.get(f"/v1/discoveries/{request_id}/{archive_file}")
 
         assert response.status_code == 404
         assert response.json() == {
-            "error": f"File not found: {archive_file}",
-            "discovery_id": request_id,
-            "discovery_status": "pending",
+            "error": {
+                "message": f"File not found: {archive_file}",
+                "discovery_id": request_id,
+                "discovery_status": "pending",
+            }
         }
 
     def test_discoveries_status_patch(self):
         client = self.make_client(status=DiscoveryStatus.RUNNING)
         request_id = "123"
 
-        response = client.patch(f"/discoveries/{request_id}", json={"status": DiscoveryStatus.RUNNING})
+        response = client.patch(f"/v1/discoveries/{request_id}", json={"status": DiscoveryStatus.RUNNING})
 
         assert response.status_code == 200
         assert response.json() == {
-            "discovery_id": request_id,
-            "discovery_status": DiscoveryStatus.RUNNING.value,
+            "archive_url": None,
+            "configuration_path": "configuration.yaml",
+            "created_timestamp": None,
+            "finished_timestamp": None,
+            "id": None,
+            "notification_settings": None,
+            "notified": False,
+            "output_dir": "output",
+            "started_timestamp": None,
+            "status": "running",
         }
 
     def test_discoveries_delete(self):
         client = self.make_client()
         request_id = "123"
 
-        response = client.delete(f"/discoveries/{request_id}")
+        response = client.delete(f"/v1/discoveries/{request_id}")
 
         assert response.status_code == 200
         assert response.json() == {
-            "discovery_id": request_id,
-            "discovery_status": DiscoveryStatus.DELETED.value,
+            "id": request_id,
+            "status": DiscoveryStatus.DELETED.value,
         }
 
     @staticmethod
@@ -153,7 +162,7 @@ class TestAPI:
 
     @staticmethod
     def make_client(status: Optional[DiscoveryStatus] = DiscoveryStatus.PENDING) -> TestClient:
-        repository = MongoDiscoveriesRepository(mongo_client=MagicMock(), database="simod", collection="requests")
+        repository = MongoDiscoveriesRepository(mongo_client=MagicMock(), database="simod", collection="discoveries")
         repository.get = MagicMock(
             return_value=Discovery(
                 _id="123",
@@ -164,6 +173,7 @@ class TestAPI:
         )
         repository.save = MagicMock()
         repository.save_status = MagicMock()
+        repository.delete_all = MagicMock(return_value=1)
         inject_discoveries_repository(api, repository)
 
         inject_broker_client(api, stub_broker_client())
@@ -184,7 +194,7 @@ class TestAPI:
         )
 
         response = client.post(
-            "/discoveries",
+            "/v1/discoveries",
             headers={"Content-Type": data.content_type},
             content=data.to_string(),
         )

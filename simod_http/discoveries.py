@@ -31,7 +31,8 @@ class NotificationSettings(BaseModel):
 class Discovery:
     configuration_path: str
     status: DiscoveryStatus
-    _id: Optional[str] = None
+    _id: Optional[str] = None  # MongoDB ObjectId
+    id: Optional[str] = None  # Same as _id, but for returning in Response, _<field> are ignored
     output_dir: Optional[str] = None
     notification_settings: Optional[NotificationSettings] = None
     created_timestamp: Optional[datetime.datetime] = None
@@ -45,6 +46,7 @@ class Discovery:
 
     def set_id(self, discovery_id: str):
         self._id = discovery_id
+        self.id = self._id
 
     def to_dict(self, without_id: bool = False):
         d = {

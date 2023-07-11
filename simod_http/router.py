@@ -204,7 +204,8 @@ async def patch_discovery(request: Request, discovery_id: str, payload: PatchDis
 
 @dataclass
 class DeleteDiscoveryResponse:
-    discovery_id: str
+    id: str
+    status: DiscoveryStatus = DiscoveryStatus.DELETED
 
 
 @router.delete("/{discovery_id}")
@@ -216,7 +217,7 @@ async def delete_discovery(request: Request, discovery_id: str) -> DeleteDiscove
     discovery.status = DiscoveryStatus.DELETED
     app.discoveries_repository.save_status(discovery_id, discovery.status)
 
-    return DeleteDiscoveryResponse(discovery_id=discovery_id)
+    return DeleteDiscoveryResponse(id=discovery_id, status=discovery.status)
 
 
 # Controller helpers

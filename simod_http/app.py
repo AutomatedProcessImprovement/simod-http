@@ -69,7 +69,7 @@ class Application:
             self._mongo_client.close()
 
 
-def make_app() -> Application:
+def make_simod_app() -> Application:
     configuration = ApplicationConfiguration()
     app = Application(configuration)
     return app
