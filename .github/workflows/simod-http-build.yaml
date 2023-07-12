@@ -48,12 +48,13 @@ jobs:
         run: poetry export -f requirements.txt --output requirements.txt --without-hashes
 
       - name: Commit requirements.txt
-        run: |
-          git config --local user.email "ihar.suvorau@gmail.com"
-          git config --local user.name "Ihar Suvorau"
-          git add requirements.txt
-          git commit -m "Update requirements.txt"
-          git push
+        id: requirements
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: requirements.txt
+          author_name: 'Ihar Suvorau'
+          author_email: 'ihar.suvorau@gmail.com'
+          message: 'Update requirements.txt'
 
       - name: Assign a version tag
         run: |
