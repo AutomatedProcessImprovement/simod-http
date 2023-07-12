@@ -2,9 +2,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Union
 
-from fastapi import APIRouter
-from starlette.requests import Request
-from starlette.responses import FileResponse, Response
+from fastapi import APIRouter, Request, Response
+from starlette.responses import FileResponse
 
 from simod_http.app import Application
 from simod_http.configurations import HttpConfiguration

@@ -4,11 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Union, Optional, List
 
-from fastapi import Form, APIRouter
+from fastapi import APIRouter, UploadFile, BackgroundTasks, Request
 from starlette import status
-from starlette.background import BackgroundTasks
-from starlette.datastructures import UploadFile
-from starlette.requests import Request
 
 from simod_http.app import Application
 from simod_http.discoveries.model import Discovery, DiscoveryStatus, NotificationMethod, NotificationSettings
@@ -33,8 +30,8 @@ async def get_discoveries(request: Request) -> List[Discovery]:
 async def create_discovery(
     request: Request,
     background_tasks: BackgroundTasks,
-    configuration=Form(),
-    event_log=Form(),
+    configuration: UploadFile,
+    event_log: UploadFile,
     callback_url: Optional[str] = None,
     email: Optional[str] = None,
 ) -> Discovery:
