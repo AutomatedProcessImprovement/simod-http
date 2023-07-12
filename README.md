@@ -25,7 +25,7 @@ Submitting a job with a configuration and an event log in using a `multipart/for
 ```shell
 curl -X POST "http://localhost:8080/discoveries" \
 -F "configuration=@resources/config/sample.yml; type=application/yaml" \
--F "event_log=@resources/event_logs/PurchasingExample.csv; type=text/csv”
+-F "event_log=@resources/event_logs/PurchasingExample.csv; type=text/csv"
 ```
 
 `resources/config/sample.yml` is the path to the configuration file and `resources/event_logs/PurchasingExample.csv` is
@@ -43,5 +43,5 @@ call when the job is ready. The request would look like this:
 ```shell
 curl -X POST "http://localhost:8080/discoveries?callback_url=http//youdomain.com/callback" \
 -F "configuration=@resources/config/sample.yml; type=application/yaml" \
--F "event_log=@resources/event_logs/PurchasingExample.csv; type=text/csv”
+-F "event_log=@resources/event_logs/PurchasingExample.csv; type=text/csv"
 ```
