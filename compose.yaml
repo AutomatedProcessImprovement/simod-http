@@ -1,6 +1,6 @@
 services:
   simod-http:
-    image: nokal/simod-http:0.12.0
+    image: nokal/simod-http:0.13.0
     depends_on:
       - mongo
     volumes:
