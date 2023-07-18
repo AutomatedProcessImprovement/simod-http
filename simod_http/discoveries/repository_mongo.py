@@ -30,7 +30,7 @@ class MongoDiscoveriesRepository(DiscoveriesRepositoryInterface):
     def create(self, discovery: Discovery, discoveries_storage_path: Path) -> Discovery:
         discovery.created_timestamp = datetime.datetime.now()
 
-        result = self.collection.insert_one(discovery.to_dict())
+        result = self.collection.insert_one(discovery.to_mongo_dict())
 
         discovery.set_id(str(result.inserted_id))
 
@@ -55,7 +55,7 @@ class MongoDiscoveriesRepository(DiscoveriesRepositoryInterface):
 
         self.collection.update_one(
             {"_id": oid},
-            {"$set": discovery.to_dict(without_id=True)},
+            {"$set": discovery.to_mongo_dict(without_id=True)},
             upsert=True,
         )
 

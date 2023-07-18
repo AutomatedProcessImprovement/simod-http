@@ -15,14 +15,13 @@ from simod_http.discoveries.model import (
     DiscoveryStatus,
     NotificationMethod,
     NotificationSettings,
-    DiscoveryOut,
 )
 from simod_http.exceptions import UnsupportedMediaType, InternalServerError, NotSupported
 
 router = APIRouter(prefix="/discoveries")
 
 
-@router.get("/", response_model=List[DiscoveryOut])
+@router.get("/", response_model=List[Discovery])
 async def get_discoveries(request: Request) -> List[Discovery]:
     """
     Get all business process simulation model discoveries.
