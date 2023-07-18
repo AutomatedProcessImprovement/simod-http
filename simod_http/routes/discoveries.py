@@ -1,6 +1,8 @@
 import re
 import shutil
+import subprocess
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Union, Optional, List
 
@@ -51,13 +53,12 @@ async def create_discovery(
         notification_settings=notification_settings,
         configuration_path=str(configuration_path),
         status=DiscoveryStatus.ACCEPTED,
-        output_dir=None,
     )
 
     discovery = app.discoveries_repository.create(discovery, app.configuration.storage.discoveries_path)
     app.logger.info(f"New discovery {discovery.get_id()}: status={discovery.status}")
 
-    background_tasks.add_task(_process_post_discovery, discovery, app)
+    background_tasks.add_task(_process_new_discovery, discovery, app)
 
     return discovery
 
@@ -107,6 +108,7 @@ def _notification_settings_from_params(
 
 
 def _save_uploaded_event_log(upload: UploadFile, app: Application) -> Path:
+    # TODO: don't accept anything but CSV
     event_log_file_extension = _infer_event_log_file_extension_from_header(upload.content_type)
     if event_log_file_extension is None:
         raise UnsupportedMediaType(message="Unsupported event log file type")
@@ -125,7 +127,7 @@ def _infer_event_log_file_extension_from_header(content_type: str) -> Union[str,
     if "text/csv" in content_type:
         return ".csv"
     elif "application/xml" in content_type or "text/xml" in content_type:
-        return ".xml"
+        return ".xes"
     else:
         return None
 
@@ -134,13 +136,13 @@ def _update_and_save_configuration(upload: UploadFile, event_log_path: Path, app
     content = upload.file.read()
     upload.file.close()
 
-    regexp = r"log_path: .*\n"
-    replacement = f"log_path: {event_log_path.absolute()}\n"
+    regexp = r"train_log_path: .*\n"
+    replacement = f"train_log_path: {event_log_path.absolute()}\n"
     content = re.sub(regexp, replacement, content.decode("utf-8"))
 
     # test log is not supported in discovery params
     regexp = r"test_log_path: .*\n"
-    replacement = "test_log_path: None\n"
+    replacement = "test_log_path: null\n"
     content = re.sub(regexp, replacement, content)
 
     new_file = app.files_repository.create(content.encode("utf-8"), ".yaml")
@@ -150,7 +152,7 @@ def _update_and_save_configuration(upload: UploadFile, event_log_path: Path, app
     return new_file_path
 
 
-def _process_post_discovery(discovery: Discovery, app: Application):
+def _process_new_discovery(discovery: Discovery, app: Application):
     app.logger.info(
         f"Processing discovery {discovery.get_id()}: "
         f"status={discovery.status}, "
@@ -158,16 +160,46 @@ def _process_post_discovery(discovery: Discovery, app: Application):
     )
 
     try:
-        app.broker_client.publish_discovery(discovery)
-        discovery.status = DiscoveryStatus.PENDING
-        app.discoveries_repository.save(discovery)
+        _pre_start_discovery(app, discovery)
+        _start_discovery(discovery)
     except Exception as e:
         discovery.status = DiscoveryStatus.FAILED
-        app.discoveries_repository.save(discovery)
         app.logger.error(e)
-        raise e
+    finally:
+        _post_start_discovery(app, discovery)
 
     app.logger.info(f"Processed discovery {discovery.get_id()}, {discovery.status}")
+
+
+def _pre_start_discovery(app: Application, discovery: Discovery):
+    discovery.output_dir = f"{app.configuration.storage.discoveries_path}/{discovery.id}"
+    discovery.status = DiscoveryStatus.PENDING
+    app.discoveries_repository.save(discovery)
+
+
+def _start_discovery(discovery: Discovery):
+    try:
+        discovery.started_timestamp = datetime.now()
+        process = _start_discovery_subprocess(discovery.configuration_path, discovery.output_dir)
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Discovery {discovery.get_id()} failed: {e}, stdout={e.stdout}, stderr={e.stderr}")
+    discovery.status = DiscoveryStatus.SUCCEEDED if process.returncode == 0 else DiscoveryStatus.FAILED
+
+
+def _start_discovery_subprocess(configuration_path: str, output_dir: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["bash", "/usr/src/Simod/run.sh", configuration_path, output_dir],
+        cwd="/usr/src/Simod/",
+        capture_output=True,
+        check=True,
+    )
+
+
+def _post_start_discovery(app: Application, discovery: Discovery):
+    discovery.finished_timestamp = datetime.now()
+    # TODO: archive results
+    # TODO: call callback if available
+    app.discoveries_repository.save(discovery)
 
 
 def _remove_fs_directories(discoveries: List[Discovery]):

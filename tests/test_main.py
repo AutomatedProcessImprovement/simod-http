@@ -183,12 +183,12 @@ class TestAPI:
     def post_discovery(client: TestClient) -> Response:
         assets_dir = path_to_current_file_dir() / "assets"
         configuration_path = assets_dir / "sample.yaml"
-        event_log_path = assets_dir / "PurchasingExample.xes"
+        event_log_path = assets_dir / "AcademicCredentials_train.csv"
 
         data = MultipartEncoder(
             fields={
                 "configuration": ("configuration.yaml", configuration_path.open("rb"), "text/yaml"),
-                "event_log": ("event_log.xes", event_log_path.open("rb"), "application/xml"),
+                "event_log": ("event_log.csv", event_log_path.open("rb"), "text/csv"),
             }
         )
 

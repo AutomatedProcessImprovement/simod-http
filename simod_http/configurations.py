@@ -57,6 +57,7 @@ class LoggingConfiguration:
 class BrokerConfiguration:
     url: str = "amqp://guest:guest@localhost:5672/"
     exchange_name: str = "simod"
+    queue_name: str = "discoveries"
     pending_routing_key: str = "discoveries.status.pending"
 
 
@@ -103,6 +104,7 @@ class ApplicationConfiguration:
         self.broker = BrokerConfiguration(
             url=os.environ.get("SIMOD_BROKER_URL", "amqp://guest:guest@localhost:5672/"),
             exchange_name=os.environ.get("SIMOD_BROKER_EXCHANGE_NAME", "simod"),
+            queue_name=os.environ.get("SIMOD_BROKER_QUEUE_NAME", "discoveries"),
             pending_routing_key=os.environ.get("SIMOD_BROKER_PENDING_ROUTING_KEY", "discoveries.status.pending"),
         )
 
