@@ -1,3 +1,4 @@
+import os
 import re
 import shutil
 import subprocess
@@ -6,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Union, Optional, List
 
-from fastapi import APIRouter, UploadFile, BackgroundTasks, Request
+from fastapi import APIRouter, UploadFile, BackgroundTasks, Request, FastAPI
 from starlette import status
 
 from simod_http.app import Application
@@ -63,7 +64,7 @@ async def create_discovery(
     discovery = app.discoveries_repository.create(discovery, app.configuration.storage.discoveries_path)
     app.logger.info(f"New discovery {discovery.id}: status={discovery.status}")
 
-    background_tasks.add_task(_process_new_discovery, discovery, app)
+    background_tasks.add_task(_process_new_discovery, discovery, app, request.app)
 
     return discovery
 
@@ -157,7 +158,7 @@ def _update_and_save_configuration(upload: UploadFile, event_log_path: Path, app
     return new_file_path
 
 
-def _process_new_discovery(discovery: Discovery, app: Application):
+def _process_new_discovery(discovery: Discovery, app: Application, fastapi_app: FastAPI):
     app.logger.info(
         f"Processing discovery {discovery.id}: "
         f"status={discovery.status}, "
@@ -171,7 +172,7 @@ def _process_new_discovery(discovery: Discovery, app: Application):
         discovery.status = DiscoveryStatus.FAILED
         app.logger.error(e)
     finally:
-        _post_start_discovery(app, discovery)
+        _post_start_discovery(app, discovery, fastapi_app)
 
     app.logger.info(f"Processed discovery {discovery.id}, {discovery.status}")
 
@@ -200,11 +201,26 @@ def _start_discovery_subprocess(configuration_path: str, output_dir: str) -> sub
     )
 
 
-def _post_start_discovery(app: Application, discovery: Discovery):
+def _post_start_discovery(app: Application, discovery: Discovery, fastapi_app: FastAPI):
     discovery.finished_timestamp = datetime.now()
-    # TODO: archive results
+
+    archive_path = _archive_discovery_results(discovery)
+    archive_name = Path(archive_path).name
+    discovery.archive_url = fastapi_app.url_path_for(
+        "get_discovery_file", discovery_id=discovery.id, file_name=archive_name
+    )
+
     # TODO: call callback if available
+
     app.discoveries_repository.save(discovery)
+
+
+def _archive_discovery_results(discovery: Discovery) -> str:
+    results_dir = os.path.join(discovery.output_dir, "best_result")
+    archive_path = os.path.join(discovery.output_dir, "results")  # name without suffix
+    archive_path = shutil.make_archive(archive_path, format="gztar", root_dir=results_dir)
+    shutil.rmtree(results_dir)
+    return archive_path
 
 
 def _remove_fs_directories(discoveries: List[Discovery]):
