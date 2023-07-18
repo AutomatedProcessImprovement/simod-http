@@ -115,7 +115,7 @@ class TestAPI:
             "configuration_path": "configuration.yaml",
             "created_timestamp": None,
             "finished_timestamp": None,
-            "id": None,
+            "id": "123",
             "notification_settings": None,
             "notified": False,
             "output_dir": "output",

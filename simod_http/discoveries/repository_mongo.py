@@ -34,7 +34,7 @@ class MongoDiscoveriesRepository(DiscoveriesRepositoryInterface):
 
         discovery.set_id(str(result.inserted_id))
 
-        output_dir = discoveries_storage_path / discovery.get_id()
+        output_dir = discoveries_storage_path / discovery.id
         output_dir.mkdir(parents=True, exist_ok=True)
         discovery.output_dir = str(output_dir)
 
@@ -48,14 +48,10 @@ class MongoDiscoveriesRepository(DiscoveriesRepositoryInterface):
         if result is None:
             return None
 
-        # ObjectId to str
-        discovery = Discovery(**result)
-        discovery.set_id(str(discovery_id))
-
-        return discovery
+        return Discovery(**result)
 
     def save(self, discovery: Discovery):
-        oid = ObjectId(discovery.get_id())
+        oid = ObjectId(discovery.id)
 
         self.collection.update_one(
             {"_id": oid},

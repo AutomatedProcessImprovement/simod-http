@@ -10,13 +10,19 @@ from fastapi import APIRouter, UploadFile, BackgroundTasks, Request
 from starlette import status
 
 from simod_http.app import Application
-from simod_http.discoveries.model import Discovery, DiscoveryStatus, NotificationMethod, NotificationSettings
+from simod_http.discoveries.model import (
+    Discovery,
+    DiscoveryStatus,
+    NotificationMethod,
+    NotificationSettings,
+    DiscoveryOut,
+)
 from simod_http.exceptions import UnsupportedMediaType, InternalServerError, NotSupported
 
 router = APIRouter(prefix="/discoveries")
 
 
-@router.get("/")
+@router.get("/", response_model=List[DiscoveryOut])
 async def get_discoveries(request: Request) -> List[Discovery]:
     """
     Get all business process simulation model discoveries.
@@ -56,7 +62,7 @@ async def create_discovery(
     )
 
     discovery = app.discoveries_repository.create(discovery, app.configuration.storage.discoveries_path)
-    app.logger.info(f"New discovery {discovery.get_id()}: status={discovery.status}")
+    app.logger.info(f"New discovery {discovery.id}: status={discovery.status}")
 
     background_tasks.add_task(_process_new_discovery, discovery, app)
 
@@ -154,7 +160,7 @@ def _update_and_save_configuration(upload: UploadFile, event_log_path: Path, app
 
 def _process_new_discovery(discovery: Discovery, app: Application):
     app.logger.info(
-        f"Processing discovery {discovery.get_id()}: "
+        f"Processing discovery {discovery.id}: "
         f"status={discovery.status}, "
         f"configuration_path={discovery.configuration_path}"
     )
@@ -168,7 +174,7 @@ def _process_new_discovery(discovery: Discovery, app: Application):
     finally:
         _post_start_discovery(app, discovery)
 
-    app.logger.info(f"Processed discovery {discovery.get_id()}, {discovery.status}")
+    app.logger.info(f"Processed discovery {discovery.id}, {discovery.status}")
 
 
 def _pre_start_discovery(app: Application, discovery: Discovery):
@@ -182,7 +188,7 @@ def _start_discovery(discovery: Discovery):
         discovery.started_timestamp = datetime.now()
         process = _start_discovery_subprocess(discovery.configuration_path, discovery.output_dir)
     except subprocess.CalledProcessError as e:
-        raise Exception(f"Discovery {discovery.get_id()} failed: {e}, stdout={e.stdout}, stderr={e.stderr}")
+        raise Exception(f"Discovery {discovery.id} failed: {e}, stdout={e.stdout}, stderr={e.stderr}")
     discovery.status = DiscoveryStatus.SUCCEEDED if process.returncode == 0 else DiscoveryStatus.FAILED
 
 

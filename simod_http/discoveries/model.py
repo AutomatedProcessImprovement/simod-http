@@ -41,8 +41,8 @@ class Discovery:
     archive_url: Optional[str] = None
     notified: bool = False
 
-    def get_id(self) -> str:
-        return self._id
+    def __post_init__(self):
+        self.id = str(self._id) if self._id else None
 
     def set_id(self, discovery_id: str):
         self._id = discovery_id
@@ -70,6 +70,20 @@ class Discovery:
             del d["_id"]
 
         return d
+
+
+@dataclass
+class DiscoveryOut:
+    """
+    This class is used to return a Discovery in the response without the _id field and other fields that are not needed.
+    """
+
+    id: Optional[str]
+    status: DiscoveryStatus
+    created_timestamp: Optional[datetime.datetime]
+    started_timestamp: Optional[datetime.datetime]
+    finished_timestamp: Optional[datetime.datetime]
+    archive_url: Optional[str]
 
 
 def remove_none_values_from_dict(d: dict):
