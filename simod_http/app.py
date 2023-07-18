@@ -3,7 +3,6 @@ from typing import Optional
 
 from pymongo import MongoClient
 
-from simod_http.broker_client import BrokerClient, make_broker_client
 from simod_http.configurations import ApplicationConfiguration
 from simod_http.discoveries.repository import DiscoveriesRepositoryInterface
 from simod_http.discoveries.repository_mongo import make_mongo_discoveries_repository
@@ -18,25 +17,13 @@ class Application:
     # Initialization of the fields below happens only once, when a property is accessed for the first time
     _files_repository: Optional[FilesRepositoryInterface]
     _discoveries_repository: Optional[DiscoveriesRepositoryInterface]
-    _broker_client: Optional[BrokerClient]
     _mongo_client: Optional[MongoClient]
 
     def __init__(self, configuration: ApplicationConfiguration):
         self.configuration = configuration
         self._files_repository = None
         self._discoveries_repository = None
-        self._broker_client = None
         self._mongo_client = None
-
-    @property
-    def broker_client(self) -> BrokerClient:
-        if self._broker_client is None:
-            self._broker_client = make_broker_client(
-                self.configuration.broker.url,
-                self.configuration.broker.exchange_name,
-                self.configuration.broker.pending_routing_key,
-            )
-        return self._broker_client
 
     @property
     def mongo_client(self) -> MongoClient:
@@ -63,8 +50,6 @@ class Application:
         return self._discoveries_repository
 
     def close(self):
-        if self._broker_client is not None:
-            self._broker_client.close()
         if self._mongo_client is not None:
             self._mongo_client.close()
 

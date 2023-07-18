@@ -54,14 +54,6 @@ class LoggingConfiguration:
 
 
 @dataclass
-class BrokerConfiguration:
-    url: str = "amqp://guest:guest@localhost:5672/"
-    exchange_name: str = "simod"
-    queue_name: str = "discoveries"
-    pending_routing_key: str = "discoveries.status.pending"
-
-
-@dataclass
 class MongoConfiguration:
     url: MongoDsn = "mongodb://localhost:27017"
     database: str = "simod"
@@ -75,7 +67,6 @@ class ApplicationConfiguration:
     http: HttpConfiguration
     storage: StorageConfiguration
     logging: LoggingConfiguration
-    broker: BrokerConfiguration
     mongo: MongoConfiguration
 
     def __init__(self, dotenv_path: Union[str, Path] = ".env"):
@@ -99,13 +90,6 @@ class ApplicationConfiguration:
             level=os.environ.get("SIMOD_LOGGING_LEVEL", "info"),
             format=os.environ.get("SIMOD_LOGGING_FORMAT", "%(asctime)s \t %(name)s \t %(levelname)s \t %(message)s"),
             path=os.environ.get("SIMOD_LOGGING_PATH", None),
-        )
-
-        self.broker = BrokerConfiguration(
-            url=os.environ.get("SIMOD_BROKER_URL", "amqp://guest:guest@localhost:5672/"),
-            exchange_name=os.environ.get("SIMOD_BROKER_EXCHANGE_NAME", "simod"),
-            queue_name=os.environ.get("SIMOD_BROKER_QUEUE_NAME", "discoveries"),
-            pending_routing_key=os.environ.get("SIMOD_BROKER_PENDING_ROUTING_KEY", "discoveries.status.pending"),
         )
 
         self.mongo = MongoConfiguration(

@@ -26,21 +26,6 @@ services:
       - SIMOD_MONGO_COLLECTION=discoveries
     restart: unless-stopped
 
-#  rabbitmq:
-#    image: rabbitmq:3.11-management-alpine
-#    ports:
-#      - 5672:5672
-#      - 15672:15672
-#    environment:
-#      - RABBITMQ_DEFAULT_USER=guest
-#      - RABBITMQ_DEFAULT_PASS=guest
-#    healthcheck:
-#      test: [ "CMD", "rabbitmqctl", "status" ]
-#      interval: 5s
-#      timeout: 5s
-#      retries: 3
-#    restart: unless-stopped
-
   mongo:
     image: mongo:6.0.5-jammy
     ports:

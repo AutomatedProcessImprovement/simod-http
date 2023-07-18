@@ -4,12 +4,10 @@ from unittest.mock import MagicMock
 
 from fastapi import FastAPI
 from httpx import Response
-from pika import BlockingConnection
 from requests_toolbelt import MultipartEncoder
 from starlette.testclient import TestClient
 
 from simod_http.app import make_simod_app
-from simod_http.broker_client import BrokerClient
 from simod_http.discoveries.model import DiscoveryStatus, Discovery
 from simod_http.discoveries.repository_mongo import DiscoveriesRepositoryInterface
 from simod_http.discoveries.repository_mongo import MongoDiscoveriesRepository
@@ -19,22 +17,6 @@ from simod_http.routes.discoveries import DeleteDiscoveriesResponse
 
 api = make_fastapi_app()
 api.state.app = make_simod_app()
-
-
-def inject_broker_client(api: FastAPI, client: BrokerClient) -> FastAPI:
-    api.state.app._broker_client = client
-    return api
-
-
-def stub_broker_client() -> BrokerClient:
-    channel = MagicMock()
-    connection = MagicMock(spec=BlockingConnection)
-    connection.channel.return_value = channel
-    client = BrokerClient("", "", "", connection=connection)
-    client.basic_publish_discovery = MagicMock()
-    client.publish_discovery = MagicMock()
-    client.connect = MagicMock()
-    return client
 
 
 def inject_discoveries_repository(api: FastAPI, repository: DiscoveriesRepositoryInterface) -> FastAPI:
@@ -156,7 +138,6 @@ class TestAPI:
     @staticmethod
     def make_failing_client() -> TestClient:
         inject_discoveries_repository(api, stub_discoveries_repository_failing())
-        inject_broker_client(api, stub_broker_client())
         return TestClient(api)
 
     @staticmethod
@@ -174,8 +155,6 @@ class TestAPI:
         repository.save_status = MagicMock()
         repository.delete_all = MagicMock(return_value=1)
         inject_discoveries_repository(api, repository)
-
-        inject_broker_client(api, stub_broker_client())
 
         return TestClient(api)
 
