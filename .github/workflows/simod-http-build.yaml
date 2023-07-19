@@ -17,7 +17,8 @@ on:
 
 env:
   DOCKERHUB_USERNAME: nokal
-  DOCKERHUB_REPO: nokal/simod-http
+  DOCKER_SIMOD_HTTP_NAME: nokal/simod-http
+  DOCKER_SIMOD_HTTP_WORKER_NAME: nokal/simod-http-worker
 
 jobs:
   build:
@@ -25,7 +26,7 @@ jobs:
     timeout-minutes: 20
     outputs:
       version: ${{ steps.versioning.outputs.version }}
-      docker_image: ${{ env.DOCKERHUB_REPO }}:${{ steps.versioning.outputs.version }}
+      docker_image: ${{ env.DOCKER_SIMOD_HTTP_NAME }}:${{ steps.versioning.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -84,12 +85,21 @@ jobs:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push to DockerHub
+      - name: Build and push simod-http to DockerHub
         uses: docker/build-push-action@v2
         with:
           push: true
-          tags: ${{ env.DOCKERHUB_REPO }}:latest,${{ env.DOCKERHUB_REPO }}:${{ needs.build.outputs.version }}
-          file: Dockerfile
+          tags: ${{ env.DOCKER_SIMOD_HTTP_NAME }}:latest,${{ env.DOCKER_SIMOD_HTTP_NAME }}:${{ needs.build.outputs.version }}
+          file: http.dockerfile
+          context: .
+          platforms: linux/amd64,linux/arm64
+
+      - name: Build and push simod-http-worker to DockerHub
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: ${{ env.DOCKER_SIMOD_HTTP_WORKER_NAME }}:latest,${{ env.DOCKER_SIMOD_HTTP_WORKER_NAME }}:${{ needs.build.outputs.version }}
+          file: worker.dockerfile
           context: .
           platforms: linux/amd64,linux/arm64
 
@@ -98,7 +108,7 @@ jobs:
 #        uses: docker/scout-action@v0.18.1
 #        with:
 #          command: quickview,compare
-#          image: ${{ env.DOCKERHUB_REPO }}
+#          image: ${{ env.DOCKER_SIMOD_HTTP_NAME }}
 #          to-latest: true
 #          ignore-unchanged: true
 #          only-severities: critical,high

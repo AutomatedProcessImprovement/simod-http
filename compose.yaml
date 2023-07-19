@@ -1,6 +1,6 @@
 services:
   simod-http:
-    image: nokal/simod-http:0.13.0
+    image: nokal/simod-http:0.13.1
     build:
       context: .
       dockerfile: http.dockerfile
@@ -35,7 +35,7 @@ services:
     restart: unless-stopped
 
   simod-http-worker:
-    image: simod-http-worker:0.1.0
+    image: simod-http-worker:0.13.1
     depends_on:
       rabbitmq:
         condition: service_healthy
