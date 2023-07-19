@@ -1,7 +1,7 @@
 import datetime
 import os
 from pathlib import Path
-from typing import Optional, Union, List
+from typing import List, Optional, Union
 from unittest.mock import MagicMock
 
 import pymongo
@@ -98,18 +98,15 @@ class MongoDiscoveriesRepository(DiscoveriesRepositoryInterface):
 
 def make_mongo_discoveries_repository(
     mongo_client: MongoClient,
-    database: str,
-    collection: str,
+    database: str = os.environ.get("SIMOD_MONGO_DATABASE", "simod"),
+    collection: str = os.environ.get("SIMOD_MONGO_COLLECTION", "discoveries"),
 ) -> Union[MongoDiscoveriesRepository, MagicMock]:
-    use_fake = os.environ.get("SIMOD_FAKE_DISCOVERIES_REPOSITORY", "false").lower() == "true"
-    if use_fake:
-        repository = MagicMock()
-        repository.create.return_value = Discovery(configuration_path="fake", status=DiscoveryStatus.PENDING)
-        repository.get.return_value = Discovery(configuration_path="fake", status=DiscoveryStatus.PENDING)
-        return repository
-    else:
-        return MongoDiscoveriesRepository(
-            mongo_client=mongo_client,
-            database=database,
-            collection=collection,
-        )
+    return MongoDiscoveriesRepository(
+        mongo_client=mongo_client,
+        database=database,
+        collection=collection,
+    )
+
+
+def make_mongo_client(mongo_url: str = os.environ.get("SIMOD_MONGO_URL", "mongodb://localhost:27017/")) -> MongoClient:
+    return MongoClient(mongo_url, username="root", password="example")

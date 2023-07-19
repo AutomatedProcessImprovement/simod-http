@@ -5,7 +5,7 @@ from pymongo import MongoClient
 
 from simod_http.configurations import ApplicationConfiguration
 from simod_http.discoveries.repository import DiscoveriesRepositoryInterface
-from simod_http.discoveries.repository_mongo import make_mongo_discoveries_repository
+from simod_http.discoveries.repository_mongo import make_mongo_client, make_mongo_discoveries_repository
 from simod_http.files.repository import FilesRepositoryInterface
 from simod_http.files.repository_fs import FileSystemFilesRepository
 
@@ -28,9 +28,7 @@ class Application:
     @property
     def mongo_client(self) -> MongoClient:
         if self._mongo_client is None:
-            self._mongo_client = MongoClient(
-                self.configuration.mongo.url, username="root", password="example"
-            )  # TODO: refactor credentials
+            self._mongo_client = make_mongo_client(self.configuration.mongo.url)  # TODO: refactor credentials
         return self._mongo_client
 
     @property

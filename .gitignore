@@ -1,6 +1,8 @@
 .DS_Store
 .idea
+.vscode
 tmp
 data
 .pytest_cache
 tests/results
+__pycache__

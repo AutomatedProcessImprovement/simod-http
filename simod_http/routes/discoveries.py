@@ -1,13 +1,13 @@
 import os
 import re
 import shutil
-import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Union, Optional, List
+from typing import List, Optional, Union
 
-from fastapi import APIRouter, UploadFile, BackgroundTasks, Request, FastAPI
+from celery.result import AsyncResult
+from fastapi import APIRouter, BackgroundTasks, FastAPI, Request, UploadFile
 from starlette import status
 
 from simod_http.app import Application
@@ -17,7 +17,8 @@ from simod_http.discoveries.model import (
     NotificationMethod,
     NotificationSettings,
 )
-from simod_http.exceptions import UnsupportedMediaType, InternalServerError, NotSupported
+from simod_http.exceptions import InternalServerError, NotSupported, UnsupportedMediaType
+from simod_http.worker import DiscoveryResult, post_process_discovery_result, run_discovery
 
 router = APIRouter(prefix="/discoveries")
 
@@ -64,7 +65,7 @@ async def create_discovery(
     discovery = app.discoveries_repository.create(discovery, app.configuration.storage.discoveries_path)
     app.logger.info(f"New discovery {discovery.id}: status={discovery.status}")
 
-    background_tasks.add_task(_process_new_discovery, discovery, app, request.app)
+    background_tasks.add_task(_process_new_discovery, discovery, app)
 
     return discovery
 
@@ -158,7 +159,7 @@ def _update_and_save_configuration(upload: UploadFile, event_log_path: Path, app
     return new_file_path
 
 
-def _process_new_discovery(discovery: Discovery, app: Application, fastapi_app: FastAPI):
+def _process_new_discovery(discovery: Discovery, app: Application):
     app.logger.info(
         f"Processing discovery {discovery.id}: "
         f"status={discovery.status}, "
@@ -167,14 +168,13 @@ def _process_new_discovery(discovery: Discovery, app: Application, fastapi_app: 
 
     try:
         _pre_start_discovery(app, discovery)
-        _start_discovery(discovery)
+        result = _start_discovery(app, discovery)
+        result.forget()
     except Exception as e:
         discovery.status = DiscoveryStatus.FAILED
+        discovery.finished_timestamp = datetime.now()
+        app.discoveries_repository.save(discovery)
         app.logger.error(e)
-    finally:
-        _post_start_discovery(app, discovery, fastapi_app)
-
-    app.logger.info(f"Processed discovery {discovery.id}, {discovery.status}")
 
 
 def _pre_start_discovery(app: Application, discovery: Discovery):
@@ -183,44 +183,12 @@ def _pre_start_discovery(app: Application, discovery: Discovery):
     app.discoveries_repository.save(discovery)
 
 
-def _start_discovery(discovery: Discovery):
-    try:
-        discovery.started_timestamp = datetime.now()
-        process = _start_discovery_subprocess(discovery.configuration_path, discovery.output_dir)
-    except subprocess.CalledProcessError as e:
-        raise Exception(f"Discovery {discovery.id} failed: {e}, stdout={e.stdout}, stderr={e.stderr}")
-    discovery.status = DiscoveryStatus.SUCCEEDED if process.returncode == 0 else DiscoveryStatus.FAILED
-
-
-def _start_discovery_subprocess(configuration_path: str, output_dir: str) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        ["bash", "/usr/src/Simod/run.sh", configuration_path, output_dir],
-        cwd="/usr/src/Simod/",
-        capture_output=True,
-        check=True,
+def _start_discovery(app: Application, discovery: Discovery) -> AsyncResult:
+    return run_discovery.apply_async(
+        args=[discovery.configuration_path, discovery.output_dir],
+        task_id=discovery.id,
+        link=post_process_discovery_result.s(),
     )
-
-
-def _post_start_discovery(app: Application, discovery: Discovery, fastapi_app: FastAPI):
-    discovery.finished_timestamp = datetime.now()
-
-    archive_path = _archive_discovery_results(discovery)
-    archive_name = Path(archive_path).name
-    discovery.archive_url = fastapi_app.url_path_for(
-        "get_discovery_file", discovery_id=discovery.id, file_name=archive_name
-    )
-
-    # TODO: call callback if available
-
-    app.discoveries_repository.save(discovery)
-
-
-def _archive_discovery_results(discovery: Discovery) -> str:
-    results_dir = os.path.join(discovery.output_dir, "best_result")
-    archive_path = os.path.join(discovery.output_dir, "results")  # name without suffix
-    archive_path = shutil.make_archive(archive_path, format="gztar", root_dir=results_dir)
-    shutil.rmtree(results_dir)
-    return archive_path
 
 
 def _remove_fs_directories(discoveries: List[Discovery]):
