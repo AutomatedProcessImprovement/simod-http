@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Optional
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from fastapi import FastAPI
 from httpx import Response
@@ -71,9 +71,11 @@ class TestAPI:
             "error": {
                 "message": [
                     {
+                        "input": None,
                         "loc": ["body"],
-                        "msg": "field required",
-                        "type": "value_error.missing",
+                        "msg": "Field required",
+                        "type": "missing",
+                        "url": "https://errors.pydantic.dev/2.0.3/v/missing",
                     }
                 ]
             }
@@ -82,10 +84,11 @@ class TestAPI:
     def test_discoveries_post(self):
         client = self.make_client()
 
-        response = self.post_discovery(client)
+        with patch("fastapi.BackgroundTasks.add_task"):
+            response = self.post_discovery(client)
 
         assert response.status_code == 202
-        assert "id" in response.json()
+        assert "_id" in response.json()
 
     def test_discoveries_file(self):
         client = self.make_client()
@@ -115,7 +118,7 @@ class TestAPI:
             "configuration_path": "configuration.yaml",
             "created_timestamp": None,
             "finished_timestamp": None,
-            "id": "123",
+            "_id": "123",
             "notification_settings": None,
             "notified": False,
             "output_dir": "output",
@@ -150,6 +153,9 @@ class TestAPI:
                 configuration_path="configuration.yaml",
                 output_dir="output",
             )
+        )
+        repository.create = MagicMock(
+            return_value=Discovery(_id="123", status=status, configuration_path="configuration.yaml")
         )
         repository.save = MagicMock()
         repository.save_status = MagicMock()
