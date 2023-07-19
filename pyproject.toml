@@ -3,10 +3,7 @@ name = "simod-http"
 version = "0.13.1"
 description = "HTTP API for handling Simod discoveries"
 authors = ["Ihar Suvorau <ihar.suvorau@gmail.com>"]
-packages = [
-    { include = "simod_http", from = "." },
-    { include = "simod_http_worker", from = "./worker" },
-]
+packages = [{ include = "simod_http", from = "." }]
 
 [tool.poetry.dependencies]
 python = "^3.9"

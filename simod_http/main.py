@@ -8,7 +8,7 @@ from starlette.exceptions import HTTPException
 
 from simod_http.app import make_simod_app
 from simod_http.configurations import LoggingConfiguration
-from simod_http.exceptions import NotFound, BadMultipartRequest, UnsupportedMediaType, InternalServerError, NotSupported
+from simod_http.exceptions import BadMultipartRequest, InternalServerError, NotFound, NotSupported, UnsupportedMediaType
 from simod_http.routes.discoveries import router as discoveries_router
 from simod_http.routes.discovery import router as discovery_router
 from simod_http.routes.index import router as index_router
@@ -89,17 +89,17 @@ def make_fastapi_app() -> FastAPI:
         return exc.json_response
 
     @api.exception_handler(UnsupportedMediaType)
-    async def bad_multipart_exception_handler(_, exc: UnsupportedMediaType) -> JSONResponse:
+    async def unsupported_media_type_exception_handler(_, exc: UnsupportedMediaType) -> JSONResponse:
         api.state.app.logger.exception(f"Unsupported media type exception occurred: {exc}")
         return exc.json_response
 
     @api.exception_handler(InternalServerError)
-    async def bad_multipart_exception_handler(_, exc: InternalServerError) -> JSONResponse:
+    async def internal_server_error_exception_handler(_, exc: InternalServerError) -> JSONResponse:
         api.state.app.logger.exception(f"Internal server error exception occurred: {exc}")
         return exc.json_response
 
     @api.exception_handler(NotSupported)
-    async def bad_multipart_exception_handler(_, exc: NotSupported) -> JSONResponse:
+    async def not_supported_exception_handler(_, exc: NotSupported) -> JSONResponse:
         api.state.app.logger.exception(f"Not supported exception occurred: {exc}")
         return exc.json_response
 
