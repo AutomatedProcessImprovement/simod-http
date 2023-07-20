@@ -29,9 +29,9 @@ jobs:
         uses: shimataro/ssh-key-action@v2
         with:
           key: "${{ secrets.PIX_SSH_KEY }}"
-          name: "id_rsa-ga"
+          name: "pix"
           known_hosts: "${{ secrets.KNOWN_HOSTS }}"
 
       - name: Deploy with Ansible
         run: |
-          ansible-playbook -i ansible/hosts.yaml --private-key ~/.ssh/id_rsa-ga ansible/deploy.yaml
+          ansible-playbook -i ansible/hosts.yaml --private-key ~/.ssh/pix ansible/deploy.yaml
