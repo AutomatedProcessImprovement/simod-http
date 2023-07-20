@@ -8,14 +8,14 @@ on:
       - '*.dockerfile'
       - 'simod_http/**'
       - 'tests/**'
-      - '.github/workflows/**'
+      - '.github/workflows/build.yaml'
   pull_request:
     branches: [ main ]
     paths:
       - '*.dockerfile'
       - 'simod_http/**'
       - 'tests/**'
-      - '.github/workflows/**'
+      - '.github/workflows/build.yaml'
 
 env:
   DOCKERHUB_USERNAME: nokal
