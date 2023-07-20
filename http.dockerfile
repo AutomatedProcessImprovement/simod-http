@@ -30,5 +30,3 @@ COPY . .
 # Expose the port that the application listens on.
 EXPOSE 8000
 
-# Run the application.
-CMD uvicorn 'simod_http.main:api' --host=0.0.0.0 --port=8000 --workers=$WEB_CONCURRENCY --log-level=$SIMOD_LOGGING_LEVEL --proxy-headers

@@ -18,6 +18,7 @@ services:
       - SIMOD_MONGO_COLLECTION=discoveries
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    command: uvicorn simod_http.main:api --host=0.0.0.0 --port=8000 --workers=$WEB_CONCURRENCY --log-level=$SIMOD_LOGGING_LEVEL --proxy-headers --root-path=/api/v1
     restart: unless-stopped
 
   mongo:

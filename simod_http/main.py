@@ -114,8 +114,8 @@ def make_fastapi_app() -> FastAPI:
 
     # Routing
 
-    api.include_router(discoveries_router, prefix="/api/v1")
-    api.include_router(discovery_router, prefix="/api/v1")
+    api.include_router(discoveries_router)
+    api.include_router(discovery_router)
 
     return api
 
