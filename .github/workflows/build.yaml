@@ -5,13 +5,13 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'Dockerfile'
+      - '*.dockerfile'
       - 'simod_http/**'
       - '.github/workflows/**'
   pull_request:
     branches: [ main ]
     paths:
-      - 'Dockerfile'
+      - '*.dockerfile'
       - 'simod_http/**'
       - '.github/workflows/**'
 

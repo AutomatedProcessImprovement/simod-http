@@ -1,20 +1,17 @@
 services:
   simod-http:
     image: nokal/simod-http:0.13.1
-    build:
-      context: .
-      dockerfile: http.dockerfile
     depends_on:
       - mongo
       - simod-http-worker
     volumes:
-      - /tmp/simod:/tmp/simod
+      - /mnt/attached-storage/simod:/mnt/attached-storage/simod
     ports:
       - 8000:8000
     environment:
       - SIMOD_DEBUG=true
       - WEB_CONCURRENCY=4
-      - SIMOD_STORAGE_PATH=/tmp/simod
+      - SIMOD_STORAGE_PATH=/mnt/attached-storage/simod
       - SIMOD_STORAGE_DISCOVERY_EXPIRATION_TIMEDELTA=604800
       - SIMOD_STORAGE_CLEANING_TIMEDELTA=300
       - SIMOD_LOGGING_LEVEL=info
@@ -35,15 +32,12 @@ services:
     restart: unless-stopped
 
   simod-http-worker:
-    image: simod-http-worker:0.13.1
+    image: nokal/simod-http-worker:0.13.1
     depends_on:
       rabbitmq:
         condition: service_healthy
       redis:
         condition: service_healthy
-    build:
-      context: .
-      dockerfile: worker.dockerfile
     environment:
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
@@ -51,7 +45,7 @@ services:
       - SIMOD_MONGO_DATABASE=simod
       - SIMOD_MONGO_COLLECTION=discoveries
     volumes:
-      - /tmp/simod:/tmp/simod
+      - /mnt/attached-storage/simod:/mnt/attached-storage/simod
     command: celery --app simod_http.worker worker --loglevel info --concurrency=2 --autoscale=2,1 --events --hostname simod-http-worker
     restart: unless-stopped
 
@@ -98,8 +92,9 @@ services:
     image: nginx:stable
     ports:
       - 80:80
+      - 443:443
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - /srv/simod-http/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - simod-http
     restart: unless-stopped

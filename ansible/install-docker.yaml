@@ -1,0 +1,48 @@
+- name: Configure host
+  hosts: main
+  remote_user: ubuntu
+  become: true
+  vars:
+    attached_storage: /mnt/attached-storage
+  tasks:
+    - name: Install ca-certificates, curl, gnupg
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: true
+      loop:
+        - ca-certificates
+        - curl
+        - gnupg
+
+    - name: Add Docker’s official GPG key
+      ansible.builtin.shell: |
+        sudo install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        sudo chmod a+r /etc/apt/keyrings/docker.gpg
+      register: docker_gpg_key
+      changed_when: docker_gpg_key.stdout != ''
+      ignore_errors: true
+      async: 60
+      poll: 60
+
+    - name: Set up the repository
+      ansible.builtin.shell: |
+        echo \
+        "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+        "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+        sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+      register: docker_repo
+      changed_when: docker_repo.stdout != ''
+
+    - name: Install Docker Engine
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: true
+      loop:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+        - docker-buildx-plugin
+        - docker-compose-plugin
