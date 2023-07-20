@@ -30,7 +30,7 @@ jobs:
         with:
           key: "${{ secrets.PIX_SSH_KEY }}"
           name: "id_rsa-ga"
-          known_hosts: "simod.cloud.ut.ee"
+          known_hosts: "${{ secrets.KNOWN_HOSTS }}"
 
       - name: Deploy with Ansible
         run: |
