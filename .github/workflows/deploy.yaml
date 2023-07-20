@@ -28,7 +28,12 @@ jobs:
         with:
           key: "${{ secrets.PIX_SSH_KEY }}"
           name: "id_rsa-ga"
-          known_hosts: "${{ secrets.KNOWN_HOSTS }}"
+
+      - name: Add known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -t rsa simod.cloud.ut.ee >> ~/.ssh/known_hosts
+        
 
       - name: Deploy with Ansible
         run: |
