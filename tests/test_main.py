@@ -8,9 +8,8 @@ from requests_toolbelt import MultipartEncoder
 from starlette.testclient import TestClient
 
 from simod_http.app import make_simod_app
-from simod_http.discoveries.model import DiscoveryStatus, Discovery
-from simod_http.discoveries.repository_mongo import DiscoveriesRepositoryInterface
-from simod_http.discoveries.repository_mongo import MongoDiscoveriesRepository
+from simod_http.discoveries.model import Discovery, DiscoveryStatus
+from simod_http.discoveries.repository_mongo import DiscoveriesRepositoryInterface, MongoDiscoveriesRepository
 from simod_http.exceptions import NotFound
 from simod_http.main import make_fastapi_app
 from simod_http.routes.discoveries import DeleteDiscoveriesResponse
@@ -48,7 +47,7 @@ class TestAPI:
     def test_catch_all_route(self):
         client = self.make_failing_client()
 
-        response = client.get("/v1/foo")
+        response = client.get("/api/v1/foo")
 
         assert response.status_code == 404
         assert response.json() == {"error": {"message": "Not Found"}}
@@ -56,7 +55,7 @@ class TestAPI:
     def test_discoveries_get(self):
         client = self.make_failing_client()
 
-        response = client.get("/v1/discoveries/123")
+        response = client.get("/api/v1/discoveries/123")
 
         assert response.status_code == 404
         assert response.json() == {"error": {"discovery_id": "123", "message": "Discovery not found"}}
@@ -64,7 +63,7 @@ class TestAPI:
     def test_discoveries_patch(self):
         client = self.make_failing_client()
 
-        response = client.patch("/v1/discoveries/123")
+        response = client.patch("/api/v1/discoveries/123")
 
         assert response.status_code == 422
         assert response.json() == {
@@ -95,7 +94,7 @@ class TestAPI:
         request_id = "123"
 
         archive_file = f"{request_id}.tar.gz"
-        response = client.get(f"/v1/discoveries/{request_id}/{archive_file}")
+        response = client.get(f"/api/v1/discoveries/{request_id}/{archive_file}")
 
         assert response.status_code == 404
         assert response.json() == {
@@ -110,7 +109,7 @@ class TestAPI:
         client = self.make_client(status=DiscoveryStatus.RUNNING)
         request_id = "123"
 
-        response = client.patch(f"/v1/discoveries/{request_id}", json={"status": DiscoveryStatus.RUNNING})
+        response = client.patch(f"/api/v1/discoveries/{request_id}", json={"status": DiscoveryStatus.RUNNING})
 
         assert response.status_code == 200
         assert response.json() == {
@@ -130,7 +129,7 @@ class TestAPI:
         client = self.make_client()
         request_id = "123"
 
-        response = client.delete(f"/v1/discoveries/{request_id}")
+        response = client.delete(f"/api/v1/discoveries/{request_id}")
 
         assert response.status_code == 200
         assert response.json() == {
@@ -178,7 +177,7 @@ class TestAPI:
         )
 
         response = client.post(
-            "/v1/discoveries",
+            "/api/v1/discoveries",
             headers={"Content-Type": data.content_type},
             content=data.to_string(),
         )
