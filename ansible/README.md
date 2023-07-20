@@ -2,7 +2,7 @@
 
 Ansible is used to manage the configuration of remote machines. The following scripts are available:
 
-- [hosts.yaml](hosts.yaml): lists available machines ansible
+- [hosts.yaml](hosts.yaml): lists available machines ansible. Notice, `pix` private key is required to access the machines.
 - [deploy.yaml](deploy.yaml): deploys simod-http to a remote machine
 - [install-docker.yaml](install-docker.yaml): installs Docker on a remote machine (see [Docker installation instructions](https://docs.docker.com/engine/install/ubuntu/))
   

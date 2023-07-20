@@ -34,3 +34,13 @@ If the project is not installed yet, run:
 pip install poetry
 poetry install
 ```
+
+## Managed Simod HTTP instance
+
+The managed instance is most likely running at http://simod.cloud.ut.ee/api/. Check the [API documentation](http://simod.cloud.ut.ee/api/docs) for more information.
+
+## Deployment
+
+See [Configuration management with Ansible](ansible/README.md).
+
+Single-button deployment can be triggered from the [GitHub Actions workflow]((https://github.com/AutomatedProcessImprovement/simod-http/actions/workflows/deploy.yaml)).
