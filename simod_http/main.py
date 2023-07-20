@@ -11,7 +11,6 @@ from simod_http.configurations import LoggingConfiguration
 from simod_http.exceptions import BadMultipartRequest, InternalServerError, NotFound, NotSupported, UnsupportedMediaType
 from simod_http.routes.discoveries import router as discoveries_router
 from simod_http.routes.discovery import router as discovery_router
-from simod_http.routes.index import router as index_router
 
 
 @asynccontextmanager
@@ -115,9 +114,8 @@ def make_fastapi_app() -> FastAPI:
 
     # Routing
 
-    api.include_router(index_router)
-    api.include_router(discoveries_router, prefix="/v1")
-    api.include_router(discovery_router, prefix="/v1")
+    api.include_router(discoveries_router, prefix="/api/v1")
+    api.include_router(discovery_router, prefix="/api/v1")
 
     return api
 
