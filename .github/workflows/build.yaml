@@ -7,12 +7,14 @@ on:
     paths:
       - '*.dockerfile'
       - 'simod_http/**'
+      - 'tests/**'
       - '.github/workflows/**'
   pull_request:
     branches: [ main ]
     paths:
       - '*.dockerfile'
       - 'simod_http/**'
+      - 'tests/**'
       - '.github/workflows/**'
 
 env:
