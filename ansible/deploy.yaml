@@ -6,6 +6,15 @@
     deployment_dir: /srv/simod-http
     storage_dir: /mnt/attached-storage/simod
   tasks:
+    - name: Create directories with wide access
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0666"
+      loop:
+        - "{{ deployment_dir }}"
+        - "{{ storage_dir }}"
+
     - name: Install pip3
       ansible.builtin.apt:
         name: python3-pip
@@ -27,12 +36,6 @@
       loop:
         - compose.yaml
         - nginx.conf
-
-    - name: Create Simod directory for mounting to containers
-      ansible.builtin.file:
-        path: "{{ storage_dir }}"
-        state: directory
-        mode: "0755"
 
     - name: Pull updated Docker images and restart containers
       community.docker.docker_compose:
