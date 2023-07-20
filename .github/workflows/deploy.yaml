@@ -6,7 +6,9 @@ on:
 jobs:
   deployment:
     runs-on: ubuntu-latest
-    environment: production
+    environment: 
+      name: production
+      url: https://simod.cloud.ut.ee/api/docs
     if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v3
@@ -28,12 +30,7 @@ jobs:
         with:
           key: "${{ secrets.PIX_SSH_KEY }}"
           name: "id_rsa-ga"
-
-      - name: Add known hosts
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -t rsa simod.cloud.ut.ee >> ~/.ssh/known_hosts
-        
+          known_hosts: "simod.cloud.ut.ee"
 
       - name: Deploy with Ansible
         run: |
