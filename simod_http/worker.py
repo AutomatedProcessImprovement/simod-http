@@ -6,11 +6,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+import httpx
 from celery import Celery
 
-from simod_http.discoveries.model import Discovery, DiscoveryStatus
+from simod_http.discoveries.model import Discovery, DiscoveryStatus, NotificationMethod, NotificationSettings
 from simod_http.discoveries.repository import DiscoveriesRepositoryInterface
 from simod_http.discoveries.repository_mongo import make_mongo_client, make_mongo_discoveries_repository
+from simod_http.exceptions import NotSupported
 
 app = Celery("simod_http_worker")
 
@@ -58,16 +60,21 @@ def post_process_discovery_result(discovery_result: dict) -> str:
     try:
         archive_path = archive_discovery_results(discovery)
         archive_name = Path(archive_path).name
-        discovery.archive_url = api.url_path_for(
-            "get_discovery_file", discovery_id=discovery.id, file_name=archive_name
-        )
+        root_url = api.scope.get("root_path", "")
+        archive_url = api.url_path_for("get_discovery_file", discovery_id=discovery.id, file_name=archive_name)
+        discovery.archive_url = os.path.join(root_url, archive_url)
     except Exception as e:
         discovery.status = DiscoveryStatus.FAILED
         raise e
     finally:
         repository.save(discovery)
 
-    # TODO: call callback if available
+    try:
+        resolve_notification(discovery.notification_settings, discovery.archive_url)
+    except Exception as e:
+        api.state.app.logger.error(
+            f"Failed to resolve notification with settings: {discovery.notification_settings}. Exception: {e}"
+        )
 
     return archive_path
 
@@ -101,3 +108,19 @@ def archive_discovery_results(discovery: Discovery) -> str:
     archive_path = shutil.make_archive(archive_path, format="gztar", root_dir=results_dir)
     shutil.rmtree(results_dir)
     return archive_path
+
+
+def resolve_notification(notification_settings: Optional[NotificationSettings], archive_url: str):
+    if not notification_settings:
+        return
+
+    if notification_settings.method == NotificationMethod.HTTP:
+        _notify_http(notification_settings.callback_url, archive_url)
+    elif notification_settings.method == NotificationMethod.EMAIL:
+        raise NotSupported("Email notification is not supported yet.")
+    else:
+        raise NotSupported(f"Notification method {notification_settings.method} is not supported.")
+
+
+def _notify_http(callback_url: str, archive_url: str):
+    httpx.post(callback_url, json={"archive_url": archive_url})
