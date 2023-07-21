@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-import httpx
+import requests
 from celery import Celery
 
 from simod_http.discoveries.model import Discovery, DiscoveryStatus, NotificationMethod, NotificationSettings
@@ -60,9 +60,11 @@ def post_process_discovery_result(discovery_result: dict) -> str:
     try:
         archive_path = archive_discovery_results(discovery)
         archive_name = Path(archive_path).name
-        root_url = api.scope.get("root_path", "")
         archive_url = api.url_path_for("get_discovery_file", discovery_id=discovery.id, file_name=archive_name)
-        discovery.archive_url = os.path.join(root_url, archive_url)
+        discovery.archive_url = f"/{api.root_path.strip('/')}/{archive_url.strip('/')}"
+        api.state.app.logger.info(
+            f"Discovery {discovery.id}: archive URL: {discovery.archive_url}, root path: {api.root_path}"
+        )
     except Exception as e:
         discovery.status = DiscoveryStatus.FAILED
         raise e
@@ -123,4 +125,4 @@ def resolve_notification(notification_settings: Optional[NotificationSettings], 
 
 
 def _notify_http(callback_url: str, archive_url: str):
-    httpx.post(callback_url, json={"archive_url": archive_url})
+    requests.post(callback_url, json={"archive_url": archive_url})
