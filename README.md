@@ -1,6 +1,7 @@
 # Simod HTTP
 
-![simod-http](https://github.com/AutomatedProcessImprovement/simod-http/actions/workflows/build.yaml/badge.svg)
+![build](https://github.com/AutomatedProcessImprovement/simod-http/actions/workflows/build.yaml/badge.svg)
+![deploy](https://github.com/AutomatedProcessImprovement/simod-http/actions/workflows/deploy.yaml/badge.svg)
 ![version](https://img.shields.io/github/v/tag/AutomatedProcessImprovement/simod-http)
 
 Simod HTTP is a collection of services to run Simod in a distributed environment ready for deployment using Docker. It extends [Simod](https://github.com/AutomatedProcessImprovement/Simod) with an HTTP API and task management using Celery (RabbitMQ and Redis).
