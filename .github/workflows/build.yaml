@@ -1,4 +1,4 @@
-name: Simod HTTP
+name: Build
 
 on:
   workflow_dispatch:
