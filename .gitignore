@@ -7,3 +7,4 @@ data
 tests/results
 __pycache__
 ansible/htpasswd
+ansible/compose.yaml
