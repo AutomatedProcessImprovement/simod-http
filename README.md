@@ -44,4 +44,4 @@ The managed instance is most likely running at http://simod.cloud.ut.ee/api/v1/.
 
 See [Configuration management with Ansible](ansible/README.md).
 
-Single-button deployment can be triggered from the [GitHub Actions workflow]((https://github.com/AutomatedProcessImprovement/simod-http/actions/workflows/deploy.yaml)).
+Single-button deployment can be triggered from the [GitHub Actions workflow]((https://github.com/AutomatedProcessImprovement/simod-http/actions/workflows/deploy.yaml)). Celery Flower dashboard is accessible at https://simod.cloud.ut.ee/flower.
