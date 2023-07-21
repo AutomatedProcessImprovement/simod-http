@@ -6,12 +6,10 @@ from requests_toolbelt import MultipartEncoder
 
 def post_discovery() -> httpx.Response:
     assets_dir = Path(__file__).parent / "assets"
-    configuration_path = assets_dir / "sample.yaml"
     event_log_path = assets_dir / "AcademicCredentials_train.csv"
 
     data = MultipartEncoder(
         fields={
-            "configuration": ("configuration.yaml", configuration_path.open("rb"), "text/yaml"),
             "event_log": ("event_log.csv", event_log_path.open("rb"), "text/csv"),
         }
     )

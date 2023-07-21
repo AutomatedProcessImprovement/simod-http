@@ -16,7 +16,7 @@ from simod_http.discoveries.model import (
     NotificationMethod,
     NotificationSettings,
 )
-from simod_http.exceptions import InternalServerError, NotSupported, UnsupportedMediaType
+from simod_http.exceptions import InternalServerError, UnsupportedMediaType
 from simod_http.worker import post_process_discovery_result, run_discovery
 
 router = APIRouter(prefix="/discoveries")
@@ -38,8 +38,8 @@ async def get_discoveries(request: Request) -> List[Discovery]:
 async def create_discovery(
     request: Request,
     background_tasks: BackgroundTasks,
-    configuration: UploadFile,
     event_log: UploadFile,
+    configuration: Union[UploadFile, None] = None,
     callback_url: Optional[str] = None,
 ) -> Discovery:
     """
@@ -134,9 +134,12 @@ def _infer_event_log_file_extension_from_header(content_type: str) -> Union[str,
         return None
 
 
-def _update_and_save_configuration(upload: UploadFile, event_log_path: Path, app: Application):
-    content = upload.file.read()
-    upload.file.close()
+def _update_and_save_configuration(upload: Optional[UploadFile], event_log_path: Path, app: Application):
+    if upload is None:
+        content = Path(app.configuration.default_configuration_path).read_bytes()
+    else:
+        content = upload.file.read()
+        upload.file.close()
 
     regexp = r"train_log_path: .*\n"
     replacement = f"train_log_path: {event_log_path.absolute()}\n"

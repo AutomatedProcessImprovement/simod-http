@@ -15,7 +15,21 @@ from simod_http.routes.discovery import router as discovery_router
 
 @asynccontextmanager
 async def lifespan(api: FastAPI):
-    # Injecting the cust application logic into the FastAPI instance's state.
+    # Request is processed here
+    yield
+
+    # Closing the application
+    api.state.app.close()
+
+
+def make_fastapi_app() -> FastAPI:
+    global root_path
+
+    api = FastAPI(lifespan=lifespan, root_path="/api/v1")
+
+    # Simod HTTP Application
+
+    # Injecting the custom application logic into the FastAPI instance's state.
     # This allows later to inject a mock application instance in tests for handlers.
     app = make_simod_app()
     api.state.app = app
@@ -27,34 +41,6 @@ async def lifespan(api: FastAPI):
         app.logger.debug(f"Configuration: {app.configuration}")
     else:
         app.logger.info("Debug mode is off")
-
-    # Everything happens here
-    yield
-
-    # Closing the application
-    app.close()
-
-
-def set_up_logging(config: LoggingConfiguration):
-    logging_handlers = []
-    if config.path is not None:
-        logging_handlers.append(logging.FileHandler(config.path, mode="w"))
-
-    if len(logging_handlers) > 0:
-        logging.basicConfig(
-            level=config.level.upper(),
-            handlers=logging_handlers,
-            format=config.format,
-        )
-    else:
-        logging.basicConfig(
-            level=config.level.upper(),
-            format=config.format,
-        )
-
-
-def make_fastapi_app() -> FastAPI:
-    api = FastAPI(lifespan=lifespan)
 
     # Exception handling
 
@@ -121,6 +107,24 @@ def make_fastapi_app() -> FastAPI:
     api.include_router(discovery_router)
 
     return api
+
+
+def set_up_logging(config: LoggingConfiguration):
+    logging_handlers = []
+    if config.path is not None:
+        logging_handlers.append(logging.FileHandler(config.path, mode="w"))
+
+    if len(logging_handlers) > 0:
+        logging.basicConfig(
+            level=config.level.upper(),
+            handlers=logging_handlers,
+            format=config.format,
+        )
+    else:
+        logging.basicConfig(
+            level=config.level.upper(),
+            format=config.format,
+        )
 
 
 api = make_fastapi_app()
