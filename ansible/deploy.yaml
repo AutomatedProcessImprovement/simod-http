@@ -36,7 +36,7 @@
         echo "{{ lookup('ansible.builtin.env', 'FLOWER_USER') }}:$(openssl passwd -apr1 {{ lookup('ansible.builtin.env', 'FLOWER_PASSWORD') }})" \
         > {{ deployment_dir }}/htpasswd
       register: htpasswd
-      changed_when: false
+      changed_when: true
 
     - name: Copy configuration files
       ansible.builtin.copy:
