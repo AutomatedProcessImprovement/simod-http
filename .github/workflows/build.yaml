@@ -59,10 +59,22 @@ jobs:
           author_email: 'ihar.suvorau@gmail.com'
           message: 'Update requirements.txt'
 
+      - name: Generate Docker Compose manifests
+        run: bash generate_compose.sh
+      
+      - name: Commit compose.yaml and ansible/compose.yaml
+        id: compose
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: "['compose.yaml', 'ansible/compose.yaml']"
+          author_name: 'Ihar Suvorau'
+          author_email: 'ihar.suvorau@gmail.com'
+          message: 'Update compose.yaml and ansible/compose.yaml'
+
       - name: Assign a version tag
         run: |
           git tag ${{ steps.versioning.outputs.version }}
-          git push --tags        
+          git push --tags
 
   docker:
     runs-on: ubuntu-latest
