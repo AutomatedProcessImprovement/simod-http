@@ -1,4 +1,3 @@
-import os
 import re
 import shutil
 from dataclasses import dataclass
@@ -7,7 +6,7 @@ from pathlib import Path
 from typing import List, Optional, Union
 
 from celery.result import AsyncResult
-from fastapi import APIRouter, BackgroundTasks, FastAPI, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Request, UploadFile
 from starlette import status
 
 from simod_http.app import Application
@@ -18,7 +17,7 @@ from simod_http.discoveries.model import (
     NotificationSettings,
 )
 from simod_http.exceptions import InternalServerError, NotSupported, UnsupportedMediaType
-from simod_http.worker import DiscoveryResult, post_process_discovery_result, run_discovery
+from simod_http.worker import post_process_discovery_result, run_discovery
 
 router = APIRouter(prefix="/discoveries")
 

@@ -1,7 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
@@ -59,8 +59,8 @@ def make_fastapi_app() -> FastAPI:
     # Exception handling
 
     @api.exception_handler(HTTPException)
-    async def http_exception_handler(_, exc: HTTPException) -> JSONResponse:
-        api.state.app.logger.exception(f"HTTP exception occurred: {exc}")
+    async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+        api.state.app.logger.exception(f"HTTP exception occurred: {exc}, scope={request.scope}")
         return JSONResponse(
             status_code=exc.status_code,
             content={
@@ -79,7 +79,10 @@ def make_fastapi_app() -> FastAPI:
         )
 
     @api.exception_handler(NotFound)
-    async def not_found_exception_handler(_, exc: NotFound) -> JSONResponse:
+    async def not_found_exception_handler(request: Request, exc: NotFound) -> JSONResponse:
+        api.state.app.logger.exception(
+            f"Not found exception occurred: {exc}, path={request.url.path}, scope={request.scope}"
+        )
         return exc.json_response
 
     @api.exception_handler(BadMultipartRequest)
