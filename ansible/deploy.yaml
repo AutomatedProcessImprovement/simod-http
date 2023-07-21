@@ -33,12 +33,12 @@
 
     - name: Generate htpasswd file from environment variables
       ansible.builtin.shell: |
-        echo "{{ FLOWER_USER }}:$(openssl passwd -crypt {{ FLOWER_PASSWORD }})" > {{ deployment_dir }}/htpasswd
+        echo "{{ flower_user }}:$(openssl passwd -crypt {{ flower_password }})" > {{ deployment_dir }}/htpasswd
       register: htpasswd
       changed_when: false
       environment:
-        FLOWER_USER: "{{ lookup('ansible.builtin.env', 'FLOWER_USER') }}"
-        FLOWER_PASSWORD: "{{ lookup('ansible.builtin.env', 'FLOWER_PASSWORD') }}"
+        flower_user: "{{ lookup('ansible.builtin.env', 'FLOWER_USER') }}"
+        flower_password: "{{ lookup('ansible.builtin.env', 'FLOWER_PASSWORD') }}"
 
     - name: Copy configuration files
       ansible.builtin.copy:
