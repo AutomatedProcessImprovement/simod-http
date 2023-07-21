@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: 
       name: production
-      url: http://simod.cloud.ut.ee/api/docs
+      url: http://simod.cloud.ut.ee/api/v1/docs
     if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v3
