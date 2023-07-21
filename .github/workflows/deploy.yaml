@@ -34,7 +34,7 @@ jobs:
 
       - name: Deploy with Ansible
         run: |
-          ansible-playbook -i ansible/hosts.yaml --private-key ~/.ssh/pix ansible/deploy.yaml
+          ansible-playbook -i ansible/hosts.yaml --private-key ~/.ssh/pix -v ansible/deploy.yaml
         env:
           FLOWER_USER: ${{ secrets.FLOWER_USER }}
           FLOWER_PASSWORD: ${{ secrets.FLOWER_PASSWORD }}
