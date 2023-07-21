@@ -1,6 +1,6 @@
 services:
   simod-http:
-    image: nokal/simod-http:0.13.8
+    image: nokal/simod-http:0.13.9
     depends_on:
       - mongo
       - simod-http-worker
@@ -28,7 +28,7 @@ services:
     restart: unless-stopped
 
   simod-http-worker:
-    image: nokal/simod-http-worker:0.13.8
+    image: nokal/simod-http-worker:0.13.9
     depends_on:
       rabbitmq:
         condition: service_healthy
