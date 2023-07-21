@@ -41,17 +41,13 @@ async def create_discovery(
     configuration: UploadFile,
     event_log: UploadFile,
     callback_url: Optional[str] = None,
-    email: Optional[str] = None,
 ) -> Discovery:
     """
     Create a new business process simulation model discovery discovery.
     """
     app = request.app.state.app
 
-    if email is not None:
-        raise NotSupported(message="Email notifications are not supported")
-
-    notification_settings = _notification_settings_from_params(callback_url, email)
+    notification_settings = _notification_settings_from_params(callback_url, None)
     event_log_path = _save_uploaded_event_log(event_log, app)
     configuration_path = _update_and_save_configuration(configuration, event_log_path, app)
 
