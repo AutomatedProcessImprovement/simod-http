@@ -177,7 +177,7 @@ class TestAPI:
         )
 
         response = client.post(
-            "/discoveries",
+            "/discoveries/",
             headers={"Content-Type": data.content_type},
             content=data.to_string(),
         )
