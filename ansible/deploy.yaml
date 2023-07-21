@@ -5,8 +5,6 @@
   vars:
     deployment_dir: /srv/simod-http
     storage_dir: /mnt/attached-storage/simod
-    flower_user: lookup('ansible.builtin.env', 'FLOWER_USER')
-    flower_password: lookup('ansible.builtin.env', 'FLOWER_PASSWORD')
   tasks:
     - name: Create directories with wide access
       ansible.builtin.file:
@@ -35,7 +33,8 @@
 
     - name: Generate htpasswd file from environment variables
       ansible.builtin.shell: |
-        echo "{{ flower_user }}:$(openssl passwd -crypt {{ flower_password }})" > {{ deployment_dir }}/htpasswd
+        echo "{{ lookup('ansible.builtin.env', 'FLOWER_USER') }}:$(openssl passwd -crypt {{ lookup('ansible.builtin.env', 'FLOWER_PASSWORD') }})" \
+        > {{ deployment_dir }}/htpasswd
       register: htpasswd
       changed_when: false
 
