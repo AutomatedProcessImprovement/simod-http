@@ -61,6 +61,9 @@ jobs:
 
       - name: Generate Docker Compose manifests
         run: bash generate_compose.sh
+        env:
+          FLOWER_USER: ${{ secrets.FLOWER_USER }}
+          FLOWER_PASSWORD: ${{ secrets.FLOWER_PASSWORD }}
       
       - name: Commit compose.yaml and ansible/compose.yaml
         id: compose

@@ -14,6 +14,8 @@ simod_http_worker_image_name="nokal/simod-http-worker:$simod_version"
 
 sed -e "s|<simod-http-image-name>|$simod_http_image_name|g" \
     -e "s|<simod-http-worker-image-name>|$simod_http_worker_image_name|g" \
+    -e "s|<flower-user>|$FLOWER_USER|g" \
+    -e "s|<flower-password>|$FLOWER_PASSWORD|g" \
     $production_template > $production_output
 
 sed -e "s|<simod-http-image-name>|$simod_http_image_name|g" \
