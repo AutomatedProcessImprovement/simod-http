@@ -20,7 +20,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --only-upgrade openssl
-          sudo apt-get install -y python3-pip
+          sudo apt-get install -y python3-pip apache2-utils
           pip3 install -U pip ansible pyyaml
           ansible --version
           docker --version

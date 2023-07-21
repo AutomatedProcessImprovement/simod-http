@@ -96,6 +96,7 @@ services:
       - 8000:80
     volumes:
       - ./ansible/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ansible/htpasswd:/etc/nginx/htpasswd:ro
     depends_on:
       - simod-http
     restart: unless-stopped

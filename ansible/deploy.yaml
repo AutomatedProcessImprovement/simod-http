@@ -15,10 +15,13 @@
         - "{{ deployment_dir }}"
         - "{{ storage_dir }}"
 
-    - name: Install pip3
+    - name: Install apt packages
       ansible.builtin.apt:
-        name: python3-pip
+        name: "{{ item }}"
         state: present
+      loop:
+        - python3-pip
+        - openssl
 
     - name: Install Docker for Python
       ansible.builtin.pip:
@@ -30,7 +33,7 @@
 
     - name: Generate htpasswd file from environment variables
       ansible.builtin.shell: |
-        htpasswd -b -c {{ deployment_dir }}/htpasswd $FLOWER_USER $FLOWER_PASSWORD
+        echo "{{ FLOWER_USER }}:$(openssl passwd -crypt {{ FLOWER_PASSWORD }})" > {{ deployment_dir }}/htpasswd
       register: htpasswd
       changed_when: false
 

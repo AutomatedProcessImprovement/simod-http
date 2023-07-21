@@ -21,3 +21,5 @@ sed -e "s|<simod-http-image-name>|$simod_http_image_name|g" \
 sed -e "s|<simod-http-image-name>|$simod_http_image_name|g" \
     -e "s|<simod-http-worker-image-name>|$simod_http_worker_image_name|g" \
     $development_template > $development_output
+
+echo "$FLOWER_USER:$(openssl passwd -crypt $FLOWER_PASSWORD)" >ansible/htpasswd

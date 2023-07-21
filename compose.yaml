@@ -58,8 +58,6 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-    ports:
-      - 5555:5555
     environment:
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=amqp://guest:guest@rabbitmq:5672//
@@ -98,6 +96,7 @@ services:
       - 8000:80
     volumes:
       - ./ansible/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ansible/htpasswd:/etc/nginx/htpasswd:ro
     depends_on:
       - simod-http
     restart: unless-stopped
