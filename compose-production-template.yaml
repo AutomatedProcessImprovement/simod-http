@@ -53,7 +53,7 @@ services:
     environment:
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=amqp://guest:guest@rabbitmq:5672//
-    command: celery --broker amqp://guest:guest@rabbitmq:5672// flower --port=5555 --basic_auth=<flower-user>:<flower-password> --persistent=True --url_prefix=flower
+    command: celery --broker amqp://guest:guest@rabbitmq:5672// flower --port=5555 --persistent=True --url_prefix=flower
     restart: unless-stopped
 
   redis:
