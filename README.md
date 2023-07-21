@@ -38,7 +38,9 @@ poetry install
 
 ## Managed Simod HTTP instance
 
-The managed instance is most likely running at http://simod.cloud.ut.ee/api/v1/. Check the [API documentation](http://simod.cloud.ut.ee/api/v1/docs) for more information.
+The managed instance is most likely running at http://simod.cloud.ut.ee/api/v1/. 
+
+Check the API documentation at [http://simod.cloud.ut.ee/api/v1/docs](http://simod.cloud.ut.ee/api/v1/docs) or [http://simod.cloud.ut.ee/api/v1/redoc](http://simod.cloud.ut.ee/api/v1/redoc) for more information.
 
 ## Deployment
 
