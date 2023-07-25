@@ -21,6 +21,7 @@ env:
   DOCKERHUB_USERNAME: nokal
   DOCKER_SIMOD_HTTP_NAME: nokal/simod-http
   DOCKER_SIMOD_HTTP_WORKER_NAME: nokal/simod-http-worker
+  DOCKER_SIMOD_HTTP_SCHEDULER_NAME: nokal/simod-http-scheduler
 
 jobs:
   build:
@@ -117,6 +118,15 @@ jobs:
           push: true
           tags: ${{ env.DOCKER_SIMOD_HTTP_WORKER_NAME }}:latest,${{ env.DOCKER_SIMOD_HTTP_WORKER_NAME }}:${{ needs.build.outputs.version }}
           file: worker.dockerfile
+          context: .
+          platforms: linux/amd64,linux/arm64
+
+      - name: Build and push simod-http-scheduler to DockerHub
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: ${{ env.DOCKER_SIMOD_HTTP_SCHEDULER_NAME }}:latest,${{ env.DOCKER_SIMOD_HTTP_SCHEDULER_NAME }}:${{ needs.build.outputs.version }}
+          file: scheduler.dockerfile
           context: .
           platforms: linux/amd64,linux/arm64
 
