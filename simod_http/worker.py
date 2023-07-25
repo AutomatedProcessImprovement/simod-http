@@ -28,14 +28,14 @@ app.conf.update(
 
 @app.task(name="simod_http.worker.run_discovery", bind=True)
 def run_discovery(self, configuration_path: str, output_dir: str) -> dict:
-    repository = make_discoveries_repository()
+    repository = _make_discoveries_repository()
 
     discovery = repository.get(self.request.id)
     discovery.started_timestamp = datetime.now()
     discovery.status = DiscoveryStatus.RUNNING
     repository.save(discovery)
 
-    result = start_discovery_subprocess(configuration_path, output_dir)
+    result = _start_discovery_subprocess(configuration_path, output_dir)
     result.id = self.request.id
     return result.__dict__
 
@@ -46,7 +46,7 @@ def post_process_discovery_result(discovery_result: dict) -> str:
 
     result = DiscoveryResult(**discovery_result)
 
-    repository = make_discoveries_repository()
+    repository = _make_discoveries_repository()
     discovery = repository.get(result.id)
 
     if result.return_code != 0:
@@ -58,7 +58,7 @@ def post_process_discovery_result(discovery_result: dict) -> str:
     discovery.finished_timestamp = datetime.now()
 
     try:
-        archive_path = archive_discovery_results(discovery)
+        archive_path = _archive_discovery_results(discovery)
         archive_name = Path(archive_path).name
         archive_url = api.url_path_for("get_discovery_file", discovery_id=discovery.id, file_name=archive_name)
         discovery.archive_url = f"/{api.root_path.strip('/')}/{archive_url.strip('/')}"
@@ -72,7 +72,9 @@ def post_process_discovery_result(discovery_result: dict) -> str:
         repository.save(discovery)
 
     try:
-        resolve_notification(discovery.notification_settings, discovery.archive_url)
+        _resolve_notification(discovery.notification_settings, discovery.archive_url)
+        discovery.notified = True
+        repository.save(discovery)
     except Exception as e:
         api.state.app.logger.error(
             f"Failed to resolve notification with settings: {discovery.notification_settings}. Exception: {e}"
@@ -81,7 +83,33 @@ def post_process_discovery_result(discovery_result: dict) -> str:
     return archive_path
 
 
-def make_discoveries_repository() -> DiscoveriesRepositoryInterface:
+@app.task(name="simod_http.worker.clean_expired_discovery_results")
+def clean_expired_discovery_results() -> dict:
+    from simod_http.main import api
+
+    expiration_delta: int = api.state.app.configuration.storage.discovery_expiration_timedelta
+
+    repository = _make_discoveries_repository()
+    discoveries = repository.get_all()
+    discoveries_ids = []
+
+    for discovery in discoveries:
+        if discovery.finished_timestamp is None:
+            continue
+
+        expires_on = discovery.finished_timestamp.timestamp() + expiration_delta
+        if expires_on < datetime.now().timestamp():
+            api.state.app.logger.info(f"Deleting discovery results for {discovery.id} because it has expired")
+            shutil.rmtree(discovery.output_dir)
+            discovery.status = DiscoveryStatus.EXPIRED
+            discovery.archive_url = None
+            repository.save(discovery)
+            discoveries_ids.append(discovery.id)
+
+    return {"cleaned": discoveries_ids}
+
+
+def _make_discoveries_repository() -> DiscoveriesRepositoryInterface:
     mongo_client = make_mongo_client()
     return make_mongo_discoveries_repository(mongo_client)
 
@@ -94,7 +122,7 @@ class DiscoveryResult:
     stderr: Optional[str] = None
 
 
-def start_discovery_subprocess(configuration_path: str, output_dir: str) -> DiscoveryResult:
+def _start_discovery_subprocess(configuration_path: str, output_dir: str) -> DiscoveryResult:
     result = subprocess.run(
         ["bash", "/usr/src/Simod/run.sh", configuration_path, output_dir],
         cwd="/usr/src/Simod/",
@@ -104,7 +132,7 @@ def start_discovery_subprocess(configuration_path: str, output_dir: str) -> Disc
     return DiscoveryResult(return_code=result.returncode, stdout=result.stdout, stderr=result.stderr)
 
 
-def archive_discovery_results(discovery: Discovery) -> str:
+def _archive_discovery_results(discovery: Discovery) -> str:
     results_dir = os.path.join(discovery.output_dir, "best_result")
     archive_path = os.path.join(discovery.output_dir, "results")  # name without suffix
     archive_path = shutil.make_archive(archive_path, format="gztar", root_dir=results_dir)
@@ -112,7 +140,7 @@ def archive_discovery_results(discovery: Discovery) -> str:
     return archive_path
 
 
-def resolve_notification(notification_settings: Optional[NotificationSettings], archive_url: str):
+def _resolve_notification(notification_settings: Optional[NotificationSettings], archive_url: str):
     if not notification_settings:
         return
 

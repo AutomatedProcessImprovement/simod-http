@@ -1,6 +1,6 @@
 services:
   simod-http:
-    image: nokal/simod-http:0.13.9
+    image: nokal/simod-http:0.13.10
     build:
       context: .
       dockerfile: http.dockerfile
@@ -23,17 +23,8 @@ services:
     command: uvicorn simod_http.main:api --host=0.0.0.0 --port=8000 --workers=4 --log-level=info --proxy-headers --root-path=/api/v1
     restart: unless-stopped
 
-  mongo:
-    image: mongo:6.0.5-jammy
-    ports:
-      - 27017:27017
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=root
-      - MONGO_INITDB_ROOT_PASSWORD=example
-    restart: unless-stopped
-
   simod-http-worker:
-    image: nokal/simod-http-worker:0.13.9
+    image: nokal/simod-http-worker:0.13.10
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -51,6 +42,31 @@ services:
     volumes:
       - /tmp/simod:/tmp/simod
     command: celery --app simod_http.worker worker --loglevel info --concurrency=2 --autoscale=2,1 --events --hostname simod-http-worker
+    restart: unless-stopped
+
+  simod-http-scheduler:
+    image: nokal/simod-http-scheduler:0.13.10
+    depends_on:
+      - simod-http
+      - simod-http-worker
+    build:
+      context: .
+      dockerfile: scheduler.dockerfile
+    environment:
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - /tmp/simod:/tmp/simod
+    command: python simod_http/scheduler.py
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:6.0.5-jammy
+    ports:
+      - 27017:27017
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=example
     restart: unless-stopped
 
   flower:

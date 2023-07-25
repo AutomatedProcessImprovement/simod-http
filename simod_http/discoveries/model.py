@@ -12,6 +12,7 @@ class DiscoveryStatus(str, Enum):
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     DELETED = "deleted"
+    EXPIRED = "expired"
 
 
 class NotificationMethod(str, Enum):
