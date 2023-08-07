@@ -20,25 +20,36 @@ After the services are up and running, you can access the following services:
 To fetch discoveries, run:
 
 ```bash
-curl -X GET "http://localhost:8000/v1/discoveries" -H  "accept: application/json"
+curl -X GET "http://localhost:8000/api/v1/discoveries"
 ```
 
-To create a discovery, run a Python script instead, because submitting a discovery requires two file uploads with a boundary in the request header and body, which is easier done in Python:
+To create a discovery, submit at least an event log file:
 
 ```bash
-poetry run python tests/post_request.py
+curl -X POST "http://localhost:8000/discoveries/" -H "content-type: multipart/form-data" -F event_log=@./tests/assets/AcademicCredentials_train.csv 
 ```
 
-If the project is not installed yet, run:
+To provide your own configuration, add a configuration file to the request too:
 
 ```bash
+curl -X POST "http://localhost:8000/discoveries/" -H "content-type: multipart/form-data" -F event_log=@./tests/assets/AcademicCredentials_train.csv -F configuration=@./tests/assets/sample.yaml
+```
+
+To install the project locally, run:
+
+```bash
+# with poetry
 pip install poetry
 poetry install
+
+# or without poetry
+pip install -r requirements.txt
+pip install .
 ```
 
 ## Managed Simod HTTP instance
 
-The managed instance is most likely running at http://simod.cloud.ut.ee/api/v1/. 
+The managed instance is most likely running (no uptime guarantees 🫣) at http://simod.cloud.ut.ee/api/v1/. 
 
 Check the API documentation at [http://simod.cloud.ut.ee/api/v1/docs](http://simod.cloud.ut.ee/api/v1/docs) or [http://simod.cloud.ut.ee/api/v1/redoc](http://simod.cloud.ut.ee/api/v1/redoc) for more information.
 
