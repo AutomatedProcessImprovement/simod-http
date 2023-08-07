@@ -47,6 +47,14 @@ async def create_discovery(
     """
     app = request.app.state.app
 
+    if not _is_valid_event_log_format(event_log):
+        raise UnsupportedMediaType(
+            message=f"Unsupported event log file type: {event_log.content_type} for {event_log.filename}"
+        )
+
+    if not _is_valid_event_log_size(event_log):
+        raise UnsupportedMediaType(message=f"Unsupported event log file size: {event_log.size}")
+
     notification_settings = _notification_settings_from_params(callback_url, None)
     event_log_path = _save_uploaded_event_log(event_log, app)
     configuration_path = _update_and_save_configuration(configuration, event_log_path, app)
@@ -109,29 +117,54 @@ def _notification_settings_from_params(
     return notification_settings
 
 
-def _save_uploaded_event_log(upload: UploadFile, app: Application) -> Path:
-    # TODO: don't accept anything but CSV
-    event_log_file_extension = _infer_event_log_file_extension_from_header(upload.content_type)
-    if event_log_file_extension is None:
-        raise UnsupportedMediaType(message="Unsupported event log file type")
+def _is_valid_event_log_format(upload: UploadFile) -> bool:
+    if upload.content_type == "text/csv":
+        return True
 
+    if upload.content_type == "application/octet-stream":
+        return upload.filename.endswith(".csv") or _is_file_compressed(upload)
+
+    return False
+
+
+def _is_file_compressed(file: UploadFile) -> bool:
+    # supported compression by pandas.read_csv: '.gz', '.bz2', '.zip', '.xz', '.zst', '.tar', '.tar.gz', '.tar.xz' or '.tar.bz2'
+    return (
+        file.filename.endswith(".gz")
+        or file.filename.endswith(".bz2")
+        or file.filename.endswith(".zip")
+        or file.filename.endswith(".xz")
+        or file.filename.endswith(".zst")
+        or file.filename.endswith(".tar")
+        or file.filename.endswith(".tar.gz")
+        or file.filename.endswith(".tar.xz")
+        or file.filename.endswith(".tar.bz2")
+    )
+
+
+def _is_valid_event_log_size(
+    upload: UploadFile, raw_size_limit: int = 500e6, compressed_size_limit: int = 70e6
+) -> bool:
+    # Accept any file if upload.size is not available
+    if upload.size is None or upload.size <= 0:
+        return True
+
+    if _is_file_compressed(upload):
+        return upload.size <= compressed_size_limit
+
+    return upload.size <= raw_size_limit
+
+
+def _save_uploaded_event_log(upload: UploadFile, app: Application) -> Path:
+    file_extension = "".join(Path(upload.filename).suffixes)
     content = upload.file.read()
     upload.file.close()
 
-    event_log_file = app.files_repository.create(content, event_log_file_extension)
-    event_log_file_path = app.files_repository.file_path(event_log_file.file_name)
-    app.logger.info(f"Uploaded event log file: {event_log_file_path}")
+    log_file = app.files_repository.create(content, file_extension)
+    log_path = app.files_repository.file_path(log_file.file_name)
+    app.logger.info(f"Uploaded event log file: {log_path}")
 
-    return app.files_repository.file_path(event_log_file.file_name)
-
-
-def _infer_event_log_file_extension_from_header(content_type: str) -> Union[str, None]:
-    if "text/csv" in content_type:
-        return ".csv"
-    elif "application/xml" in content_type or "text/xml" in content_type:
-        return ".xes"
-    else:
-        return None
+    return app.files_repository.file_path(log_path)
 
 
 def _update_and_save_configuration(upload: Optional[UploadFile], event_log_path: Path, app: Application):
