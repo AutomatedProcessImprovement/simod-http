@@ -8,6 +8,26 @@ Simod HTTP is a collection of services to run Simod in a distributed environment
 
 ## Getting Started
 
+The managed instance of Simod HTTP is most likely running (no uptime guarantees 🫣) at http://simod.cloud.ut.ee/api/v1/. 
+
+Check the API documentation at [http://simod.cloud.ut.ee/api/v1/docs](http://simod.cloud.ut.ee/api/v1/docs) or [http://simod.cloud.ut.ee/api/v1/redoc](http://simod.cloud.ut.ee/api/v1/redoc) for more information.
+
+To start using it, submit a discovery job with an event log file:
+
+```bash
+curl -X POST "http://simod.cloud.ut.ee/api/v1/discoveries/" -H "content-type: multipart/form-data" -F event_log=@<event_log_file>
+```
+
+This will run the default discovery configuration. To provide your own configuration, add a configuration file to the request too:
+
+```bash
+curl -X POST "http://simod.cloud.ut.ee/api/v1/discoveries/" -H "content-type: multipart/form-data" -F event_log=@<event_log_file> -F configuration=@<configuration_file>
+```
+
+## For Developers
+
+### Getting Started Locally
+
 ```bash
 docker compose up --build
 ```
@@ -47,13 +67,7 @@ pip install -r requirements.txt
 pip install .
 ```
 
-## Managed Simod HTTP instance
-
-The managed instance is most likely running (no uptime guarantees 🫣) at http://simod.cloud.ut.ee/api/v1/. 
-
-Check the API documentation at [http://simod.cloud.ut.ee/api/v1/docs](http://simod.cloud.ut.ee/api/v1/docs) or [http://simod.cloud.ut.ee/api/v1/redoc](http://simod.cloud.ut.ee/api/v1/redoc) for more information.
-
-## Deployment
+### Deployment
 
 See [Configuration management with Ansible](ansible/README.md).
 
