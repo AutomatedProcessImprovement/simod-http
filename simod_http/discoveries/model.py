@@ -5,14 +5,14 @@ from typing import Optional, Union
 
 
 class DiscoveryStatus(str, Enum):
-    UNKNOWN = "unknown"
-    ACCEPTED = "accepted"
+    UNKNOWN = "unknown"  # default
+    ACCEPTED = "accepted"  # incoming request has been accepted and discovery job has been created
     PENDING = "pending"
     RUNNING = "running"
     SUCCEEDED = "succeeded"
-    FAILED = "failed"
-    DELETED = "deleted"
-    EXPIRED = "expired"
+    FAILED = "failed"  # error during execution
+    EXPIRED = "expired"  # expiration time reached
+    DELETED = "deleted"  # files deleted
 
 
 class NotificationMethod(str, Enum):
@@ -30,7 +30,7 @@ class NotificationSettings:
 @dataclass
 class Discovery:
     configuration_path: str
-    status: DiscoveryStatus
+    status: DiscoveryStatus = DiscoveryStatus.UNKNOWN
     _id: Optional[str] = None  # MongoDB ObjectId
     output_dir: Optional[str] = None
     notification_settings: Optional[NotificationSettings] = None

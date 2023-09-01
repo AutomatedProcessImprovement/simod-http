@@ -196,5 +196,5 @@ def _make_results_url_for(discovery_id: str, status: DiscoveryStatus, http: Http
             port = ""
         else:
             port = f":{http.port}"
-        return f"{http.scheme}://{http.host}{port}" f"/discoveries" f"/{discovery_id}" f"/{discovery_id}.tar.gz"
+        return f"{http.scheme}://{http.host}{port}/discoveries/{discovery_id}/{discovery_id}.tar.gz"
     return None

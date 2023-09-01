@@ -12,8 +12,7 @@ services:
     environment:
       - SIMOD_DEBUG=true
       - SIMOD_STORAGE_PATH=/tmp/simod
-      - SIMOD_STORAGE_DISCOVERY_EXPIRATION_TIMEDELTA=604800
-      - SIMOD_STORAGE_CLEANING_TIMEDELTA=300
+      - SIMOD_STORAGE_DISCOVERY_EXPIRATION_TIMEDELTA=60
       - SIMOD_LOGGING_LEVEL=info
       - SIMOD_MONGO_URL=mongodb://mongo:27017
       - SIMOD_MONGO_DATABASE=simod
@@ -39,6 +38,7 @@ services:
       - SIMOD_MONGO_URL=mongodb://mongo:27017
       - SIMOD_MONGO_DATABASE=simod
       - SIMOD_MONGO_COLLECTION=discoveries
+      - SIMOD_STORAGE_DISCOVERY_EXPIRATION_TIMEDELTA=60
     volumes:
       - /tmp/simod:/tmp/simod
     command: celery --app simod_http.worker worker --loglevel info --concurrency=2 --autoscale=2,1 --events --hostname simod-http-worker
@@ -55,6 +55,8 @@ services:
     environment:
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - SIMOD_STORAGE_CLEANING_TIMEDELTA=60
+      - SIMOD_STORAGE_DISCOVERY_EXPIRATION_TIMEDELTA=60
     volumes:
       - /tmp/simod:/tmp/simod
     command: python simod_http/scheduler.py

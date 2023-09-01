@@ -1,6 +1,6 @@
 services:
   simod-http:
-    image: nokal/simod-http:0.13.13
+    image: nokal/simod-http:0.13.14
     depends_on:
       - mongo
       - simod-http-worker
@@ -21,7 +21,7 @@ services:
     restart: unless-stopped
 
   simod-http-worker:
-    image: nokal/simod-http-worker:0.13.13
+    image: nokal/simod-http-worker:0.13.14
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -33,13 +33,14 @@ services:
       - SIMOD_MONGO_URL=mongodb://mongo:27017
       - SIMOD_MONGO_DATABASE=simod
       - SIMOD_MONGO_COLLECTION=discoveries
+      - SIMOD_STORAGE_DISCOVERY_EXPIRATION_TIMEDELTA=604800
     volumes:
       - /mnt/attached-storage/simod:/mnt/attached-storage/simod
     command: celery --app simod_http.worker worker --loglevel info --concurrency=2 --autoscale=2,1 --events --hostname simod-http-worker
     restart: unless-stopped
 
   simod-http-scheduler:
-    image: nokal/simod-http-scheduler:0.13.13
+    image: nokal/simod-http-scheduler:0.13.14
     depends_on:
       - simod-http
       - simod-http-worker
@@ -49,6 +50,8 @@ services:
     environment:
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - SIMOD_STORAGE_CLEANING_TIMEDELTA=86400
+      - SIMOD_STORAGE_DISCOVERY_EXPIRATION_TIMEDELTA=604800
     volumes:
       - /tmp/simod:/tmp/simod
     command: python simod_http/scheduler.py
