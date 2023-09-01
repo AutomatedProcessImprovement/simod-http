@@ -26,13 +26,13 @@ curl -X GET "http://localhost:8000/api/v1/discoveries"
 To create a discovery, submit at least an event log file:
 
 ```bash
-curl -X POST "http://localhost:8000/discoveries/" -H "content-type: multipart/form-data" -F event_log=@./tests/assets/AcademicCredentials_train.csv 
+curl -X POST "http://localhost:8000/api/v1/discoveries/" -H "content-type: multipart/form-data" -F event_log=@./tests/assets/AcademicCredentials_train.csv 
 ```
 
 To provide your own configuration, add a configuration file to the request too:
 
 ```bash
-curl -X POST "http://localhost:8000/discoveries/" -H "content-type: multipart/form-data" -F event_log=@./tests/assets/AcademicCredentials_train.csv -F configuration=@./tests/assets/sample.yaml
+curl -X POST "http://localhost:8000/api/v1/discoveries/" -H "content-type: multipart/form-data" -F event_log=@./tests/assets/AcademicCredentials_train.csv -F configuration=@./tests/assets/sample.yaml
 ```
 
 To install the project locally, run:
