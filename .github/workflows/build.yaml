@@ -46,6 +46,7 @@ jobs:
         run: poetry run pytest
 
   prepare:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: build
     timeout-minutes: 20
