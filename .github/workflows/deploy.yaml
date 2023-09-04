@@ -6,7 +6,7 @@ on:
 jobs:
   deployment:
     runs-on: ubuntu-latest
-    environment: 
+    environment:
       name: production
       url: http://simod.cloud.ut.ee/api/v1/docs
     if: github.ref == 'refs/heads/main'
@@ -34,10 +34,4 @@ jobs:
 
       - name: Deploy with Ansible
         run: |
-          ansible-playbook -i ansible/hosts.yaml --private-key ~/.ssh/pix -v ansible/deploy.yaml
-        env:
-          FLOWER_USER: ${{ secrets.FLOWER_USER }}
-          FLOWER_PASSWORD: ${{ secrets.FLOWER_PASSWORD }}
-          SIMOD_ADMIN_USERNAME: ${{ secrets.SIMOD_ADMIN_USERNAME }}
-          SIMOD_ADMIN_PASSWORD: ${{ secrets.SIMOD_ADMIN_PASSWORD }}
-          SIMOD_SECRET_KEY: ${{ secrets.SIMOD_SECRET_KEY }}
+          ansible-playbook -i ansible/hosts.yaml --private-key ~/.ssh/pix ansible/deploy.yaml -e "SIMOD_ADMIN_USERNAME=${{ secrets.SIMOD_ADMIN_USERNAME }} SIMOD_ADMIN_PASSWORD=${{ secrets.SIMOD_ADMIN_PASSWORD }} SIMOD_SECRET_KEY=${{ secrets.SIMOD_SECRET_KEY }} FLOWER_USER=${{ secrets.FLOWER_USER }} FLOWER_PASSWORD=${{ secrets.FLOWER_PASSWORD }}"
