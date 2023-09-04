@@ -54,6 +54,11 @@
         mode: "0644"
       register: env
       changed_when: true
+      environment:
+        SIMOD_ADMIN_USERNAME: "{{ lookup('ansible.builtin.env', 'SIMOD_ADMIN_USERNAME') }}"
+        SIMOD_ADMIN_PASSWORD: "{{ lookup('ansible.builtin.env', 'SIMOD_ADMIN_PASSWORD') }}"
+        SIMOD_SECRET_KEY: "{{ lookup('ansible.builtin.env', 'SIMOD_SECRET_KEY') }}"
+
 
     - name: Pull updated Docker images and restart containers
       community.docker.docker_compose:
