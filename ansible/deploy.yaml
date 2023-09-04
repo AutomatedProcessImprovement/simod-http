@@ -57,8 +57,6 @@
         src: simod-http.env.j2
         dest: "{{ deployment_dir }}/.env"
         mode: "0644"
-      register: env
-      changed_when: true
       environment:
         SIMOD_ADMIN_USERNAME: "{{ simod_admin_username }}"
         SIMOD_ADMIN_PASSWORD: "{{ simod_admin_password }}"
