@@ -9,6 +9,7 @@ from starlette.exceptions import HTTPException
 from simod_http.app import make_simod_app
 from simod_http.configurations import LoggingConfiguration
 from simod_http.exceptions import BadMultipartRequest, InternalServerError, NotFound, NotSupported, UnsupportedMediaType
+from simod_http.routes.token import router as auth_router
 from simod_http.routes.discoveries import router as discoveries_router
 from simod_http.routes.discovery import router as discovery_router
 
@@ -105,6 +106,7 @@ def make_fastapi_app() -> FastAPI:
 
     api.include_router(discoveries_router)
     api.include_router(discovery_router)
+    api.include_router(auth_router)
 
     return api
 

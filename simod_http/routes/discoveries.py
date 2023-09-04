@@ -3,13 +3,14 @@ import shutil
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Annotated, List, Optional, Union
 
 from celery.result import AsyncResult
-from fastapi import APIRouter, BackgroundTasks, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, UploadFile
 from starlette import status
 
 from simod_http.app import Application
+from simod_http.auth import get_current_user
 from simod_http.discoveries.model import (
     Discovery,
     DiscoveryStatus,
@@ -23,11 +24,16 @@ router = APIRouter(prefix="/discoveries")
 
 
 @router.get("/", response_model=List[Discovery])
-async def get_discoveries(request: Request) -> List[Discovery]:
+async def get_discoveries(
+    request: Request,
+    current_user: Annotated[Union[str, None], Depends(get_current_user)],
+) -> List[Discovery]:
     """
     Get all business process simulation model discoveries.
     """
     app = request.app.state.app
+
+    app.logger.info(f"User {current_user} is getting all discoveries")
 
     discoveries = app.discoveries_repository.get_all()
 
@@ -79,11 +85,16 @@ class DeleteDiscoveriesResponse:
 
 
 @router.delete("/")
-async def delete_discoveries(request: Request) -> DeleteDiscoveriesResponse:
+async def delete_discoveries(
+    request: Request,
+    current_user: Annotated[Union[str, None], Depends(get_current_user)],
+) -> DeleteDiscoveriesResponse:
     """
     Delete all business process simulation model discoveries.
     """
     app = request.app.state.app
+
+    app.logger.info(f"User {current_user} is deleting all discoveries")
 
     discoveries = app.discoveries_repository.get_all()
 
