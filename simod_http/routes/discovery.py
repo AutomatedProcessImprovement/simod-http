@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Union
+from typing import Annotated, Union
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 from starlette.responses import FileResponse
 
 from simod_http.app import Application
+from simod_http.auth import get_current_user
 from simod_http.configurations import HttpConfiguration
 from simod_http.discoveries.model import Discovery, DiscoveryStatus
 from simod_http.exceptions import InternalServerError, NotFound
@@ -99,11 +100,18 @@ async def get_discovery_file(request: Request, discovery_id: str, file_name: str
 
 
 @router.patch("/{discovery_id}")
-async def patch_discovery(request: Request, discovery_id: str, payload: PatchDiscoveryPayload) -> Discovery:
+async def patch_discovery(
+    request: Request,
+    discovery_id: str,
+    payload: PatchDiscoveryPayload,
+    current_user: Annotated[Union[str, None], Depends(get_current_user)],
+) -> Discovery:
     """
     Update the status of the discovery.
     """
     app = request.app.state.app
+
+    app.logger.info(f"User {current_user} updated discovery {discovery_id}")
 
     try:
         archive_url = None
@@ -127,8 +135,14 @@ class DeleteDiscoveryResponse:
 
 
 @router.delete("/{discovery_id}")
-async def delete_discovery(request: Request, discovery_id: str) -> DeleteDiscoveryResponse:
+async def delete_discovery(
+    request: Request,
+    discovery_id: str,
+    current_user: Annotated[Union[str, None], Depends(get_current_user)],
+) -> DeleteDiscoveryResponse:
     app = request.app.state.app
+
+    app.logger.info(f"User {current_user} is deleting discovery {discovery_id}")
 
     discovery = await _get_discovery(app, discovery_id)
 

@@ -38,3 +38,6 @@ jobs:
         env:
           FLOWER_USER: ${{ secrets.FLOWER_USER }}
           FLOWER_PASSWORD: ${{ secrets.FLOWER_PASSWORD }}
+          SIMOD_ADMIN_USERNAME: ${{ secrets.SIMOD_ADMIN_USERNAME }}
+          SIMOD_ADMIN_PASSWORD: ${{ secrets.SIMOD_ADMIN_PASSWORD }}
+          SIMOD_SECRET_KEY: ${{ secrets.SIMOD_SECRET_KEY }}

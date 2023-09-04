@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "simod-http"
-version = "0.13.14"
+version = "0.13.15"
 description = "HTTP API for handling Simod discoveries"
 authors = ["Ihar Suvorau <ihar.suvorau@gmail.com>"]
 packages = [{ include = "simod_http", from = "." }]
@@ -20,6 +20,10 @@ celery = "^5.3.1"
 redis = "^4.6.0"
 flower = "^2.0.0"
 schedule = "^1.2.0"
+python-jose = "^3.3.0"
+cryptography = "^41.0.3"
+passlib = "^1.7.4"
+bcrypt = "^4.0.1"
 
 [tool.poetry.dev-dependencies]
 

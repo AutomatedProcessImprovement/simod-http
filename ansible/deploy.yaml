@@ -47,6 +47,14 @@
         - compose.yaml
         - nginx.conf
 
+    - name: Create environment file
+      ansible.builtin.template:
+        src: simod-http.env.j2
+        dest: "{{ deployment_dir }}/.env"
+        mode: "0644"
+      register: env
+      changed_when: true
+
     - name: Pull updated Docker images and restart containers
       community.docker.docker_compose:
         project_src: "{{ deployment_dir }}"

@@ -6,4 +6,4 @@ data
 .pytest_cache
 tests/results
 __pycache__
-ansible/htpasswd
+secrets
