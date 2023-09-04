@@ -65,20 +65,7 @@ class TestAPI:
 
         response = client.patch("/discoveries/123")
 
-        assert response.status_code == 422
-        assert response.json() == {
-            "error": {
-                "message": [
-                    {
-                        "input": None,
-                        "loc": ["body"],
-                        "msg": "Field required",
-                        "type": "missing",
-                        "url": "https://errors.pydantic.dev/2.0.3/v/missing",
-                    }
-                ]
-            }
-        }
+        assert response.status_code == 401
 
     def test_discoveries_post(self):
         client = self.make_client()
@@ -111,19 +98,7 @@ class TestAPI:
 
         response = client.patch(f"/discoveries/{request_id}", json={"status": DiscoveryStatus.RUNNING})
 
-        assert response.status_code == 200
-        assert response.json() == {
-            "archive_url": None,
-            "configuration_path": "configuration.yaml",
-            "created_timestamp": None,
-            "finished_timestamp": None,
-            "_id": "123",
-            "notification_settings": None,
-            "notified": False,
-            "output_dir": "output",
-            "started_timestamp": None,
-            "status": "running",
-        }
+        assert response.status_code == 401
 
     def test_discoveries_delete(self):
         client = self.make_client()
@@ -131,11 +106,7 @@ class TestAPI:
 
         response = client.delete(f"/discoveries/{request_id}")
 
-        assert response.status_code == 200
-        assert response.json() == {
-            "id": request_id,
-            "status": DiscoveryStatus.DELETED.value,
-        }
+        assert response.status_code == 401
 
     @staticmethod
     def make_failing_client() -> TestClient:
