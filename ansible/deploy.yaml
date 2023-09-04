@@ -5,6 +5,11 @@
   vars:
     deployment_dir: /srv/simod-http
     storage_dir: /mnt/attached-storage/simod
+    flower_user: "{{ lookup('ansible.builtin.env', 'FLOWER_USER') }}"
+    flower_password: "{{ lookup('ansible.builtin.env', 'FLOWER_PASSWORD') }}"
+    simod_admin_username: "{{ lookup('ansible.builtin.env', 'SIMOD_ADMIN_USERNAME') }}"
+    simod_admin_password: "{{ lookup('ansible.builtin.env', 'SIMOD_ADMIN_PASSWORD') }}"
+    simod_secret_key: "{{ lookup('ansible.builtin.env', 'SIMOD_SECRET_KEY') }}"
   tasks:
     - name: Create directories with wide access
       ansible.builtin.file:
@@ -33,7 +38,7 @@
 
     - name: Generate htpasswd file from environment variables
       ansible.builtin.shell: |
-        echo "{{ lookup('ansible.builtin.env', 'FLOWER_USER') }}:$(openssl passwd -apr1 {{ lookup('ansible.builtin.env', 'FLOWER_PASSWORD') }})" \
+        echo "{{ flower_user }}:$(openssl passwd -apr1 {{ flower_password }})" \
         > {{ deployment_dir }}/htpasswd
       register: htpasswd
       changed_when: true
@@ -55,10 +60,9 @@
       register: env
       changed_when: true
       environment:
-        SIMOD_ADMIN_USERNAME: "{{ lookup('ansible.builtin.env', 'SIMOD_ADMIN_USERNAME') }}"
-        SIMOD_ADMIN_PASSWORD: "{{ lookup('ansible.builtin.env', 'SIMOD_ADMIN_PASSWORD') }}"
-        SIMOD_SECRET_KEY: "{{ lookup('ansible.builtin.env', 'SIMOD_SECRET_KEY') }}"
-
+        SIMOD_ADMIN_USERNAME: "{{ simod_admin_username }}"
+        SIMOD_ADMIN_PASSWORD: "{{ simod_admin_password }}"
+        SIMOD_SECRET_KEY: "{{ simod_secret_key }}"
 
     - name: Pull updated Docker images and restart containers
       community.docker.docker_compose:
