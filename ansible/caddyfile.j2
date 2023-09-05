@@ -1,0 +1,15 @@
+{{ hostname }} {
+
+reverse_proxy /api/v1 simod-http:8000
+
+request_body {
+max_size 500M
+}
+
+reverse_proxy /flower flower:5555
+
+basicauth /flower/* {
+{{ flower_user }} {{ flower_password_hash }}
+}
+
+}

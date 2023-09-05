@@ -5,6 +5,7 @@
   vars:
     deployment_dir: /srv/simod-http
     storage_dir: /mnt/attached-storage/simod
+    hostname: simod.cloud.ut.ee
   tasks:
     - name: Create directories with wide access
       ansible.builtin.file:
@@ -36,6 +37,12 @@
         echo "{{ flower_user }}:$(openssl passwd -apr1 {{ flower_password }})" > {{ deployment_dir }}/htpasswd
       register: htpasswd
       changed_when: true
+
+    - name: Generate Caddyfile
+      ansible.builtin.template:
+        src: caddyfile.j2
+        dest: "{{ deployment_dir }}/Caddyfile"
+        mode: "0644"
 
     - name: Copy configuration files
       ansible.builtin.copy:
