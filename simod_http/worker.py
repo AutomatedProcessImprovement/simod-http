@@ -28,6 +28,28 @@ app.conf.update(
 )
 
 
+@app.task(name="simod_http.worker.get_schema_json", bind=True)
+def get_schema_json(self) -> str:
+    result = subprocess.run(
+        ["poetry", "run", "simod", "--schema-json"],
+        cwd="/usr/src/Simod/",
+        capture_output=True,
+        check=True,
+    )
+    return result.stdout.decode("utf-8")
+
+
+@app.task(name="simod_http.worker.get_schema_yaml", bind=True)
+def get_schema_yaml(self) -> str:
+    result = subprocess.run(
+        ["poetry", "run", "simod", "--schema-yaml"],
+        cwd="/usr/src/Simod/",
+        capture_output=True,
+        check=True,
+    )
+    return result.stdout.decode("utf-8")
+
+
 @app.task(name="simod_http.worker.run_discovery", bind=True)
 def run_discovery(self, configuration_path: str, output_dir: str) -> dict:
     repository = _make_discoveries_repository()
