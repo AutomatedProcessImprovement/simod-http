@@ -36,6 +36,7 @@ jobs:
         run: |
           echo "flower_user: ${{ secrets.FLOWER_USER }}" >> ansible/secrets.yaml
           echo "flower_password: ${{ secrets.FLOWER_PASSWORD }}" >> ansible/secrets.yaml
+          echo "flower_password_hash: ${{ secrets.FLOWER_PASSWORD_HASH }}" >> ansible/secrets.yaml
           echo "simod_admin_username: ${{ secrets.SIMOD_ADMIN_USERNAME }}" >> ansible/secrets.yaml
           echo "simod_admin_password: '${{ secrets.SIMOD_ADMIN_PASSWORD }}'" >> ansible/secrets.yaml
           echo "simod_secret_key: ${{ secrets.SIMOD_SECRET_KEY }}" >> ansible/secrets.yaml
