@@ -32,4 +32,4 @@
 **/values.dev.yaml
 LICENSE
 README.md
-secrets
+ansible/secrets.yaml

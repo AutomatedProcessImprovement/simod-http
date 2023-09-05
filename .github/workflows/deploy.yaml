@@ -32,6 +32,14 @@ jobs:
           name: "pix"
           known_hosts: "${{ secrets.KNOWN_HOSTS }}"
 
+      - name: Prepare secrets
+        run: |
+          echo "flower_user: ${{ secrets.FLOWER_USER }}" >> ansible/secrets.yaml
+          echo "flower_password: ${{ secrets.FLOWER_PASSWORD }}" >> ansible/secrets.yaml
+          echo "simod_admin_username: ${{ secrets.SIMOD_ADMIN_USERNAME }}" >> ansible/secrets.yaml
+          echo "simod_admin_password: '${{ secrets.SIMOD_ADMIN_PASSWORD }}'" >> ansible/secrets.yaml
+          echo "simod_secret_key: ${{ secrets.SIMOD_SECRET_KEY }}" >> ansible/secrets.yaml
+
       - name: Deploy with Ansible
         run: |
-          ansible-playbook -i ansible/hosts.yaml --private-key ~/.ssh/pix ansible/deploy.yaml -e "SIMOD_ADMIN_USERNAME=${{ secrets.SIMOD_ADMIN_USERNAME }} SIMOD_ADMIN_PASSWORD=${{ secrets.SIMOD_ADMIN_PASSWORD }} SIMOD_SECRET_KEY=${{ secrets.SIMOD_SECRET_KEY }} FLOWER_USER=${{ secrets.FLOWER_USER }} FLOWER_PASSWORD=${{ secrets.FLOWER_PASSWORD }}"
+          ansible-playbook -i ansible/hosts.yaml --private-key ~/.ssh/pix ansible/deploy.yaml -e "@ansible/secrets.yaml"
