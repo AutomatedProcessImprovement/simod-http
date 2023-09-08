@@ -33,8 +33,9 @@ jobs:
           known_hosts: "${{ secrets.KNOWN_HOSTS }}"
       
       - name: Prepare secrets.yaml
+        # Using base64 is crucial to avoid problems with special characters
         run: |
-          echo "${{ secrets.SECRETS_YAML_CONTENT }}" > ansible/secrets.yaml
+          echo "${{ secrets.SECRETS_YAML_CONTENT }}" | base64 --decode > ansible/secrets.yaml
 
       - name: Deploy with Ansible
         run: |
